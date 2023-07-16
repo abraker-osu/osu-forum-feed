@@ -1,0 +1,117 @@
+from typing import Union
+
+import requests
+import time
+import logging
+
+from core.botcore.BotBase import BotBase
+from core.botcore.console_framework.Cmd import Cmd
+
+from core.DiscordClient import DiscordClient
+from core.parser import Topic, Post
+
+import config
+
+
+class ForumFeedBot(BotBase):
+
+    def __init__(self, botcore):
+        BotBase.__init__(self, botcore, self.BotCmd, self.__class__.__name__, enable = False)
+
+
+    def post_init(self):
+        pass
+
+
+    def filter_data(self, forum_data: Union[Post, Topic]):
+        return True
+
+
+    def process_data(self, forum_data):
+        post = forum_data.first_post if isinstance(forum_data, Topic) else forum_data
+        self.logger.debug(f'New post: https://osu.ppy.sh/forum/p/{post.id}')
+
+        # Get previous post's timestamp
+        prev_post = post.prev_post
+        if prev_post == None:
+            prev_post_date = post.date
+        else:
+            prev_post_date = prev_post.date
+
+        data = {
+            'subforum_id'    : post.topic.subforum_id,
+            'subforum_name'  : post.topic.subforum_name,
+            'post_date'      : str(post.date),
+            'prev_post_date' : str(prev_post_date),
+            'first_post_id'  : post.topic.first_post.id,
+            'thread_title'   : post.topic.name,
+            'post_id'        : str(post.id),
+            'username'       : post.creator.name,
+            'user_id'        : post.creator.id,
+            'avatar_url'     : post.creator.avatar,
+            'contents'       : post.content_markdown
+        }
+
+        self.__send_data(self.logger, 'post', data)
+
+
+    def __send_data(self, logger: logging.Logger, route: str, data: "dict[str, str]"):
+        handle_rate = config.rate_post_min
+
+        while True:
+            try:
+                DiscordClient.request(route, data)
+                break
+            except (requests.exceptions.Timeout, requests.exceptions.ConnectionError):
+                logger.warn(f'No Discord feed server reply! Retrying in {handle_rate} second(s)...')
+                time.sleep(handle_rate)
+
+                # 1 hour max
+                handle_rate = min(3600, handle_rate + 10)
+                continue
+
+
+    class BotCmd(Cmd):
+
+        # obj is what the commands interface with
+        def __init__(self, logger, obj):
+            self.logger = logger
+            self.obj    = obj
+
+
+        # This is one of the four function that are required to be defined in the derived class and serves to provide
+        # a list of users who are allowed to use commands up to Cmd.PERMISSION_MOD level
+        def get_bot_moderators(self):
+            return []
+
+
+        # This is one of the four function that are required to be defined in the derived class and serves to check
+        # whether the user who requested the command (requestor_id) can use the command based on whatever conditions
+        # specified in args. This might be the user id they are trying to access, their requestor id's specific
+        # status, and so on.
+        def validate_special_perm(self, requestor_id, args):
+            return False
+
+
+        @Cmd.help(
+        perm = Cmd.PERMISSION_ADMIN,
+        info = 'Prints the about text for ForumFeedBot',
+        args = {
+        })
+        def cmd_about(self, cmd_key):
+            if not self.validate_request(cmd_key):
+                return Cmd.err(f'Insufficient permissions')
+
+            return Cmd.ok('Forwards forum posts to a discord channel')
+
+
+        @Cmd.help(
+        perm = Cmd.PERMISSION_ADMIN,
+        info = 'Prints the help text for ForumFeedBot',
+        args = {
+        })
+        def cmd_help(self, cmd_key):
+            if not self.validate_request(cmd_key):
+                return Cmd.err(f'Insufficient permissions')
+
+            return Cmd.ok('TODO')
