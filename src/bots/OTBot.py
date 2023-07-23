@@ -23,19 +23,19 @@ class OTBot(BotBase):
     def process_data(self, forum_data: Union[Post, Topic]):
         self.logger.debug('Bot read')
 
-        if isinstance(forum_data, Post):  self.logger.info(f'Found OT post by: {forum_data.creator.name} in thread: {forum_data.topic.name}')
-        if isinstance(forum_data, Topic): self.logger.info(f'Found OT thread by: {forum_data.first_post.creator.name} named: {forum_data.name}')
+        if not isinstance(forum_data, Post):
+            return
 
-        data = None
-        if isinstance(forum_data, Post):
-            if forum_data.creator.name == 'abraker':
-                content = forum_data.contents_text
-                if content.find('owh') != -1:
-                    data = {}
-                    data['post_id']    = forum_data.id
-                    data['post_count'] = int(forum_data.topic.post_count)
+        self.logger.info(f'Found OT post by: {forum_data.creator.name} in thread: {forum_data.topic.name}')
 
-        if not data['post_id']:
+        data = {}
+        if forum_data.creator.name == 'abraker':
+            content = forum_data.contents_text
+            if content.find('owh') != -1:
+                data['post_id']    = forum_data.id
+                data['post_count'] = int(forum_data.topic.post_count)
+
+        if 'post_id' not in data:
             return
 
         self.logger.info('Writing post count to post...')

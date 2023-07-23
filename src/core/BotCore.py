@@ -5,7 +5,6 @@ import logging
 
 import tinydb
 
-import config
 from core.BotException import BotException
 
 from .BotBase import BotBase
@@ -14,14 +13,18 @@ from .parser import Post, Topic
 
 class BotCore():
 
-    _version = 20210328
+    class ConfigKeyError(Exception):
+        ...
 
-    def __init__(self, db_path: str):
+
+    def __init__(self, config: dict):
         self.__logger = logging.getLogger(__class__.__name__)
-        self.__logger.info(f'Forum Bot version {BotCore._version}')
         self.__logger.info('BotCore initializing...')
 
-        self.__db = tinydb.TinyDB(db_path)
+        self.__config = config
+        self.runtime_quit = False
+
+        self.__db = tinydb.TinyDB(self.get_cfg('Core', 'db_path'))
         self.check_db()
 
         self.__bots: dict[str, BotBase] = {}
@@ -40,7 +43,7 @@ class BotCore():
     def __init_bots(self):
         self.__logger.info('Loading Bots...')
 
-        bot_dir_files = os.listdir(config.bots_path)
+        bot_dir_files = os.listdir(self.get_cfg('Core', 'bots_path'))
         self.__logger.debug(f'Files found: {bot_dir_files}')
 
         bots = [ f[:-3] for f in bot_dir_files if f != '__init__.py' and f[-3:] == '.py' ]
@@ -51,6 +54,9 @@ class BotCore():
             module = importlib.import_module(f'bots.{bot}')
 
             try: self.__bots[bot] = getattr(module, bot)(self)
+            except BotCore.ConfigKeyError as e:
+                self.__logger.error(f'Cannot load "{bot}"; Missing config key: "{e}"')
+                continue
             except Exception as e:
                 msg = (
                     f'Cannot load module for bot: {module}\n'
@@ -62,9 +68,12 @@ class BotCore():
 
         for name, bot in self.__bots.items():
             try: bot.post_init()
+            except BotCore.ConfigKeyError as e:
+                self.__logger.error(f'Cannot run post initialization for "{name}"; Missing config key: "{e}"')
+                continue
             except Exception as e:
                 msg = (
-                    f'Cannot run post initialization for {name} bot; Function bot.post_init() failed!\n'
+                    f'Cannot run post initialization for "{name}"; Function bot.post_init() failed!\n'
                     f'{e}'
                 )
                 raise BotException(self.__logger, msg)
@@ -81,6 +90,12 @@ class BotCore():
 
     def get_db_table(self, name: str) -> tinydb.TinyDB.table_class:
         return self.__db.table(name)
+
+
+    def get_cfg(self, src: str, key: str):
+        try: return self.__config[src][key]
+        except KeyError as e:
+            raise BotCore.ConfigKeyError(f'{src}.{key}') from e
 
 
     def check_db(self):

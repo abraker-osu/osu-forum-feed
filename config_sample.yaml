@@ -1,0 +1,43 @@
+Core:
+  # For warn, info, and debug printouts, blank otherwise
+  is_dbg:        true
+
+  #root          = path.abspath(path.dirname(__file__))
+  log_path:      'logs'      # (str)
+  bots_log_path: 'logs/bots' # (str)
+  bots_path:     'src/bots'  # (str)
+  db_path:       'db.json'   # (str)
+
+  # Forum monitor bootstrap settings
+  # This is only used as starting values if it doesn't exist in DB
+  latest_post_id: 9059432  # (int)
+
+  # Forum monitor rate settings
+  rate_post_max:   30.0  # (float) Maximum number of seconds to wait between fetching posts when encountering osu! rate limitting
+  rate_post_warn:  10.0  # (float) Warn when rate in seconds between fetching posts is higher than this
+  rate_post_min:    3.0  # (float) Minimum number of seconds to wait between fetching posts
+  rate_fetch_fail: 60.0  # (float) Seconds to wait after encountering a connection error when fetching posts
+
+  # Port for discord bot relaying forum feed
+  discord_bot_port:  # (int)
+
+  # Discord id of admin
+  discord_admin_user_id:  # (int)
+
+  # Port on which the bot API will listen on
+  api_port:  # (int)
+
+  # Username and password for osu!web
+  # NOTE: When logging in, osu! sends a verification to the email address associated with the account.
+  #   This must be acknowledged manually upon bot initialization
+  # TODO: Is there a way to avoid putting this in plaintext here?
+  web_username:  # (str)
+  web_password:  # (str)
+
+
+ThreadNecroBot:
+  post_id:        # (int) id of post that ThreadNecroBot will write to if `is_dbg` is set to `false`
+  topic_id:       # (int) id of topic the ThreadNecroBot monitors for new posts if `is_dbg` is set to `true`
+
+  post_id_dbg:    # (int) id of post that ThreadNecroBot will write to if `is_dbg` is set to `true`
+  topic_id_dbg:   # (int) id of topic the ThreadNecroBot monitors for new posts if `is_dbg` is set to `false`

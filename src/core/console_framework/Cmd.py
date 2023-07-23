@@ -1,8 +1,7 @@
-from typing import Optional
+from typing import Optional, Callable, Union
 import logging
 
-from config import discord_admin_user_id
-
+from core import BotBase
 
 class Cmd():
 
@@ -11,7 +10,7 @@ class Cmd():
     PERMISSION_MOD     = 2  # Mods roles can use this command + admin
     PERMISSION_ADMIN   = 3  # Only admin is able to use this command
 
-    def __init__(self, logger: logging.Logger, obj):
+    def __init__(self, logger: logging.Logger, obj: BotBase):
         self.logger = logger
         self.obj    = obj
 
@@ -21,33 +20,36 @@ class Cmd():
 
 
     def get_cmd_dict(self, prefix: str = '', require_help: bool = True) -> dict:
-        cmd_dict = { attr.replace('cmd_', prefix) : getattr(self, attr)
+        cmd_dict = {
+            attr.replace('cmd_', prefix) : getattr(self, attr)
             for attr in dir(self)
-            if attr.startswith('cmd_') and hasattr(self, attr)
+                if attr.startswith('cmd_') and hasattr(self, attr)
         }
 
-        if require_help:
-            for cmd_name in list(cmd_dict):
-                if not type(cmd_dict[cmd_name]) == dict:
-                    self.logger.warning(f'\tCommand "{cmd_name}" does not have a help entry; Skipping...')
-                    del cmd_dict[cmd_name]
-                    continue
+        if not require_help:
+            return cmd_dict
 
-                if not cmd_dict[cmd_name]['help']:
-                    self.logger.warning(f'\tCommand "{cmd_name}" does not have a valid help entry (missing "help"); Skipping...')
-                    del cmd_dict[cmd_name]
-                    continue
+        for cmd_name in list(cmd_dict):
+            if not type(cmd_dict[cmd_name]) == dict:
+                self.logger.warning(f'\tCommand "{cmd_name}" does not have a help entry; Skipping...')
+                del cmd_dict[cmd_name]
+                continue
 
-                if not cmd_dict[cmd_name]['exec']:
-                    self.logger.warning(f'\tCommand "{cmd_name}" does not have a valid help entry (missing "exec"); Skipping...')
-                    del cmd_dict[cmd_name]
-                    continue
+            if not cmd_dict[cmd_name]['help']:
+                self.logger.warning(f'\tCommand "{cmd_name}" does not have a valid help entry (missing "help"); Skipping...')
+                del cmd_dict[cmd_name]
+                continue
+
+            if not cmd_dict[cmd_name]['exec']:
+                self.logger.warning(f'\tCommand "{cmd_name}" does not have a valid help entry (missing "exec"); Skipping...')
+                del cmd_dict[cmd_name]
+                continue
 
         return cmd_dict
 
 
     @staticmethod
-    def arg(var_types, is_optional: bool, info: str) -> str:
+    def arg(var_types: "Union[list[str], str]", is_optional: bool, info: str) -> str:
         if type(var_types) is not list:
             var_types = [ var_types ]
 
@@ -91,7 +93,7 @@ class Cmd():
         perm, requestor_id = cmd_key
 
         # Check against bot owner
-        if requestor_id == discord_admin_user_id: return True
+        if requestor_id == self.obj.get_cfg('Core', 'discord_admin_user_id'): return True
         if perm > Cmd.PERMISSION_MOD: return False
 
         # Check against moderator
@@ -115,7 +117,7 @@ class Cmd():
             self.perm = perm
 
 
-        def __call__(self, func, *args, **kwargs):
+        def __call__(self, func: Callable, *args: list, **kwargs: dict):
             return { 'perm' : self.perm, 'help' : self.gen_cmd_help, 'exec' : func }
 
 

@@ -12,8 +12,6 @@ from core.console_framework import Cmd
 from bots.ThreadNecroBot import ThreadNecroBot
 from bots.ThreadNecroBotCore.ThreadNecroBotCore import DB_ENUM
 
-from config import discord_admin_user_id
-
 
 class ThreadNecroBotTest(ThreadNecroBot):
 
@@ -108,7 +106,22 @@ class TestNecroBot:
     def setup_method(self, method):
         self.logger.info('Creating new ThreadNecroBotTest...')
 
-        self.core = BotCoreTest('db-test.json')
+        self.core = BotCoreTest({
+            'Core' : {
+                'is_dbg'    : True,
+                'db_path'   : 'db-test.json',
+                'bots_path' : 'src/bots',
+
+                'discord_admin_user_id' : 1234
+            },
+            'ThreadNecroBot' : {
+                'post_id'      :  random.randint(1, 10000),
+                'topic_id'     :  random.randint(1, 10000),
+
+                'post_id_dbg'  :  random.randint(1, 10000),
+                'topic_id_dbg' :  random.randint(1, 10000),
+            }
+        })
 
         self.bot = ThreadNecroBotTest(self.core)
         self.bot.post_init()
@@ -795,7 +808,7 @@ class TestNecroBot:
         """
         Tests player's points after doing the add_user_points command
         """
-        cmd_key = ( Cmd.PERMISSION_MOD, discord_admin_user_id )
+        cmd_key = ( Cmd.PERMISSION_MOD, 1234 )
 
         for i in range(100):
             data = {
@@ -835,7 +848,7 @@ class TestNecroBot:
         """
         Tests the top 10 list after doing the add_user_points command
         """
-        cmd_key = ( Cmd.PERMISSION_MOD, discord_admin_user_id )
+        cmd_key = ( Cmd.PERMISSION_MOD, 1234 )
 
         for i in range(100):
             data = {

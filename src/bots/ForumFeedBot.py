@@ -10,8 +10,6 @@ from core import Cmd
 from bots.ForumFeedBotCore import DiscordClient
 from core import Topic, Post
 
-import config
-
 
 class ForumFeedBot(BotBase):
 
@@ -56,11 +54,11 @@ class ForumFeedBot(BotBase):
 
 
     def __send_data(self, logger: logging.Logger, route: str, data: "dict[str, str]"):
-        handle_rate = config.rate_post_min
+        handle_rate = self.__core.get_cfg('Core', 'rate_post_min')
 
         while True:
             try:
-                DiscordClient.request(route, data)
+                DiscordClient.request(self.__core.get_cfg('Core', 'api_port'), route, data)
                 break
             except (requests.exceptions.Timeout, requests.exceptions.ConnectionError):
                 logger.warn(f'No Discord feed server reply! Retrying in {handle_rate} second(s)...')

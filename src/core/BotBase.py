@@ -63,6 +63,10 @@ class BotBase:
         return self.__core.get_db_table(f'{self.__name}_{name}')
 
 
+    def get_cfg(self, src: str, key: str):
+        return self.__core.get_cfg(src, key)
+
+
     def get_name(self) -> str:
         return self.__name
 

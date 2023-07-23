@@ -1,6 +1,7 @@
 import os
 import time
 import logging
+import random
 
 import pytest
 from bs4 import BeautifulSoup
@@ -29,7 +30,20 @@ class TestBotCore:
 
     def setup_method(self, method):
         self.logger.info('Creating new BotCore...')
-        self.core = BotCoreTest('db-test.json')
+        self.core = BotCoreTest({
+            'Core' : {
+                'is_dbg'    : True,
+                'db_path'   : 'db-test.json',
+                'bots_path' : 'src/bots'
+            },
+            'ThreadNecroBot' : {
+                'post_id'      :  random.randint(1, 10000),
+                'topic_id'     :  random.randint(1, 10000),
+
+                'post_id_dbg'  :  random.randint(1, 10000),
+                'topic_id_dbg' :  random.randint(1, 10000),
+            }
+        })
 
 
     def teardown_method(self, method):

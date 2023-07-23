@@ -10,8 +10,6 @@ from bs4 import BeautifulSoup
 from core.BotException import BotException
 from .parser import Topic, Post
 
-from config import web_username, web_password
-
 
 
 class SessionMgr():
@@ -29,7 +27,7 @@ class SessionMgr():
         self.__logged_in = False
 
 
-    def login(self):
+    def login(self, username: str, password: str):
         if self.__logged_in:
             return
 
@@ -42,7 +40,7 @@ class SessionMgr():
             root = BeautifulSoup(response.text, 'lxml')
             token = root.find('input', {'name' : '_token'})['value']
 
-            login_data = { '_token' : token, 'username': web_username, 'password' : web_password }
+            login_data = { '_token' : token, 'username': username, 'password' : password }
             headers = {
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:76.0) Gecko/20100101 Firefox/76.0',
                 'Referer' : 'https://osu.ppy.sh/home'
@@ -93,19 +91,19 @@ class SessionMgr():
 
     def fetch_web_data(self, url: str) -> requests.Response:
         try:
-            response = self.__session.get(url, timeout=5)
+            response = self.__session.get(url, timeout=10)
             self.__validate_response(response)
             return response
-        except (requests.exceptions.ConnectionError, requests.exceptions.Timeout):
+        except (requests.exceptions.ConnectionError, requests.exceptions.Timeout) as e:
             msg = f'Timed out while fetching url: {url}'
             self.__logger.error(msg)
-            raise BotException(self.__logger, msg)
+            raise BotException(self.__logger, msg) from e
         #except requests.exceptions.ChunkedEncodingError as e:
         #    msg = 'Unable to fetch url: ' + str(url) + '\n' + str(e)
         #    raise BotException(self.__logger, msg)
         except Exception as e:
             self.__logger.exception(f'Unable to fetch url: {url}')
-            raise e
+            raise
 
 
     def get_last_status_code(self) -> int:
@@ -128,7 +126,7 @@ class SessionMgr():
         try: bbcode = root.find('textarea').renderContents().decode('utf-8')
         except Exception as e:
             msg = f'Unable to parse bbcode for post id: {post_id}; {e}'
-            raise BotException(self.__logger, msg)
+            raise BotException(self.__logger, msg) from e
 
         return bbcode
 
@@ -158,7 +156,7 @@ class SessionMgr():
 
         except Exception as e:
             msg = f'Unable to edit post id: {post_id}; {e}'
-            raise BotException(self.__logger, msg)
+            raise BotException(self.__logger, msg) from e
 
 
     def get_subforum(self, subforum_id: Union[int, str], page: BeautifulSoup = None) -> dict:
@@ -190,10 +188,10 @@ class SessionMgr():
             thread_lastTime = [ time.text for time in thread_lastTime ]
 
         except BotException as e:
-            raise e
+            raise
         except Exception as e:
             self.__logger.exception(f'{subforum_url} is no longer parsable :(')
-            raise e
+            raise
 
         # Validate to make sure everything matches up as expected
         if not (len(thread_names) == len(thread_authors) == len(thread_lastPost) == len(thread_lastTime)):

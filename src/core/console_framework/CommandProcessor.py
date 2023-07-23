@@ -2,11 +2,10 @@ import time
 import logging
 import inspect
 
-import config
-
-from core.console_framework.Cmd import Cmd
-from core.ForumMonitor import ForumMonitor
-from core.utils import Utils
+from core.console_framework import Cmd
+from core import ForumMonitor
+from core import Utils
+from core import BotBase
 
 
 class CommandProcessor():
@@ -16,7 +15,7 @@ class CommandProcessor():
     _cmd_dict    = {}
 
     @staticmethod
-    def init(bots):
+    def init(bots: "list[BotBase]"):
         CommandProcessor._logger = logging.getLogger(__class__.__name__)
 
         # Load native commands
@@ -73,7 +72,7 @@ class CommandProcessor():
 
 
     @staticmethod
-    def execute_cmd(cmd_name, key, args, cmd_dict):
+    def execute_cmd(cmd_name: str, key: str, args: tuple, cmd_dict: dict):
         CommandProcessor._logger.info(f'key: {key}; cmd: {cmd_name} {args}')
 
         cmd_params    = inspect.signature(cmd_dict[cmd_name]['exec']).parameters
@@ -98,7 +97,7 @@ class CommandProcessor():
 
     class Core(Cmd):
 
-        def __init__(self, logger, obj, bots):
+        def __init__(self, logger: logging.Logger, obj: ForumMonitor, bots: "list[BotBase]"):
             self.logger = logger
             self.obj    = obj
             self.bots   = bots
@@ -143,7 +142,7 @@ class CommandProcessor():
             if not self.validate_request(cmd_key):
                 return Cmd.err(f'Insufficient permissions')
 
-            config.runtime_quit = True
+            self.obj.runtime_quit = True
             return Cmd.ok()
 
 
@@ -176,31 +175,7 @@ class CommandProcessor():
             if not self.validate_request(cmd_key):
                 return Cmd.err(f'Insufficient permissions')
 
-            latest_thread_id = ForumMonitor.get_latest_thread()
-            latest_post_id   = ForumMonitor.get_latest_post()
-
-            return Cmd.ok(f'Latest thread: {latest_thread_id}\nLatest post: {latest_post_id}')
-
-
-        @Cmd.help(
-        perm = Cmd.PERMISSION_ADMIN,
-        info = 'Sets the latest thread processed by Forum Monitor',
-        args = {
-        })
-        def cmd_set_latest_thread(self, cmd_key, latest_thread):
-            if not self.validate_request(cmd_key):
-                return Cmd.err(f'Insufficient permissions')
-
-            try: latest_thread = int(latest_thread)
-            except ValueError: return Cmd.err(f'Invalid thread id')
-
-            ForumMonitor.set_enable(ForumMonitor.NEW_THREAD, False)
-            while(ForumMonitor.get_status(ForumMonitor.NEW_THREAD) == True): time.sleep(0.1)
-
-            ForumMonitor.set_latest_thread(latest_thread)
-            ForumMonitor.set_enable(ForumMonitor.NEW_THREAD, True)
-
-            return Cmd.ok()
+            return Cmd.ok(f'Latest post: {self.obj.get_latest_post()}')
 
 
         @Cmd.help(
@@ -215,11 +190,11 @@ class CommandProcessor():
             try: latest_post = int(latest_post)
             except ValueError: return Cmd.err(f'Invalid post id')
 
-            ForumMonitor.set_enable(ForumMonitor.NEW_POST, False)
-            while(ForumMonitor.get_status(ForumMonitor.NEW_POST) == True): time.sleep(0.1)
+            self.obj.set_enable(self.obj.NEW_POST, False)
+            while(self.obj.get_status(self.obj.NEW_POST) == True): time.sleep(0.1)
 
-            ForumMonitor.set_latest_post(latest_post)
-            ForumMonitor.set_enable(ForumMonitor.NEW_POST, True)
+            self.obj.set_latest_post(latest_post)
+            self.obj.set_enable(self.obj.NEW_POST, True)
 
             return Cmd.ok()
 

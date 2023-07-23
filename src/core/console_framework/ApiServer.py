@@ -6,15 +6,14 @@ import socket
 from typing import List, Optional, Sequence
 
 import logging
-import config as forumbot_config
 import threading
 
 import asyncio
 import uvicorn
 import fastapi
 
-from core.botcore.console_framework.Cmd import Cmd
-from core.botcore.console_framework.CommandProcessor import CommandProcessor
+from core.console_framework.Cmd import Cmd
+from core.console_framework.CommandProcessor import CommandProcessor
 
 
 
@@ -149,15 +148,15 @@ class ApiServer():
     __thread = None
 
     @staticmethod
-    def init():
+    def init(api_port: int):
         if ApiServer._init: # init guard
             ApiServer._logger.warn('ApiServer already initialized')
             return
 
         ApiServer._logger = logging.getLogger(__class__.__name__)
 
-        ApiServer._logger.info('Initializing server: 127.0.0.1:44444')
-        ApiServer._server = UvicornServerPatch(uvicorn.Config(app=ApiServer.app, host='127.0.0.1', port=forumbot_config.api_port, log_level='debug'))
+        ApiServer._logger.info(f'Initializing server: 127.0.0.1:{api_port}')
+        ApiServer._server = UvicornServerPatch(uvicorn.Config(app=ApiServer.app, host='127.0.0.1', port=api_port, log_level='debug'))
 
         ApiServer.__loop = asyncio.get_event_loop()
         ApiServer.__loop.create_task(ApiServer._server.serve())

@@ -27,9 +27,11 @@ class ThreadNecroBot(BotBase, ThreadNecroBotCore):
     def __init__(self, botcore):
         BotBase.__init__(self, botcore, self.BotCmd, self.__class__.__name__, enable=False)
 
+        is_dbg = self.get_cfg('Core', 'is_dbg')
+
         self.subforum_id = '68'
-        self.thread_id   = '802725'
-        self.main_post   = '6804359'
+        self.topic_id    = self.get_cfg('ThreadNecroBot', 'topic_id') if is_dbg else self.get_cfg('ThreadNecroBot', 'topic_id_test')
+        self.main_post   = self.get_cfg('ThreadNecroBot', 'post_id')  if is_dbg else self.get_cfg('ThreadNecroBot', 'post_id_test')
         self.banned      = set()    # \TODO: this needs to go into db
 
 
@@ -55,7 +57,7 @@ class ThreadNecroBot(BotBase, ThreadNecroBotCore):
         if forum_data.topic.subforum_id != self.subforum_id:
             return False
 
-        if forum_data.topic.id != self.thread_id:
+        if forum_data.topic.id != self.topic_id:
             return False
 
         if forum_data.creator.id in self.banned:

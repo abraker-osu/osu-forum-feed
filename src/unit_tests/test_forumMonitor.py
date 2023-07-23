@@ -14,7 +14,15 @@ from bs4 import BeautifulSoup
 from core.ForumMonitor import ForumMonitor
 from core.parser import Topic, Post
 
-import config
+
+
+class ForumMonitorTest(ForumMonitor):
+
+    def _BotCore__init_bots(self):
+        """
+        Don't initialize bots for this testing
+        """
+        pass
 
 
 
@@ -33,17 +41,27 @@ class TestForumMonitor:
         cls.logger = logging.getLogger('TestForumMonitor')
         cls.logger.setLevel(logging.DEBUG)
 
-        config.rate_fetch_fail = 0.1
-
 
     def setup_method(self, method):
         """
         Reset ForumMonitor parameters after each test to start each test clean
         """
         self.logger.info('Creating new forum monitor...')
-        self.forum_monitor = ForumMonitor(
-            db_path = 'db-test.json',
-            login   = False
+        self.forum_monitor = ForumMonitorTest(
+            config  = {
+                'Core' : {
+                    'db_path'   : 'db-test.json',
+                    'bots_path' : 'src/bots',
+
+                    'latest_post_id': 9059432,
+
+                    'rate_post_max'  :  0.1,
+                    'rate_post_warn' :  0.1,
+                    'rate_post_min'  :  0.1,
+                    'rate_fetch_fail':  0.1,
+                }
+            },
+            login = False
         )
         self.forum_monitor._ForumMonitor__logger          = self.logger
 
@@ -56,7 +74,7 @@ class TestForumMonitor:
         self.forum_monitor.forum_driver                   = lambda _: ...
 
         # Because BotCore.__del__ sets this to true
-        config.runtime_quit = False
+        self.runtime_quit = False
 
 
     def teardown_method(self, method):
@@ -385,14 +403,27 @@ class TestForumMonitor:
         # Restart forum monitor
         # Initial conditions and overides
         self.forum_monitor.__del__()
-        self.forum_monitor = ForumMonitor(
-            db_path = 'db-test.json',
-            login   = False
-        )
-        self.forum_monitor._ForumMonitor__logger          = self.logger
+        self.forum_monitor = ForumMonitorTest(
+            config  = {
+                'Core' : {
+                    'is_dbg'    : True,
+                    'db_path'   : 'db-test.json',
+                    'bots_path' : 'src/bots',
 
-        self.forum_monitor._ForumMonitor__rate_post       = 0.1
+                    'latest_post_id': 9059432,
+
+                    'rate_post_max'  :  0.1,
+                    'rate_post_warn' :  0.1,
+                    'rate_post_min'  :  0.1,
+                    'rate_fetch_fail':  0.1,
+                }
+            },
+            login = False
+        )
+
+        self.forum_monitor._ForumMonitor__post_rate       = 0.1
         self.forum_monitor._ForumMonitor__rate_fetch_fail = 0.1
+        self.forum_monitor._ForumMonitor__logger          = self.logger
         self.forum_monitor._ForumMonitor__latest_post_id  = None
 
         self.forum_monitor.get_post                       = self.__get_post

@@ -6,6 +6,3 @@ rd /s/q logs
 
 echo Removing "cache/..."
 rd /s/q cache
-
-echo Removing "venv/..."
-rd /s/q venv

@@ -9,11 +9,9 @@ from tinydb.table import Document
 
 from threading import Thread
 
-import config
-
 from core.BotCore import BotCore
-from core import BotException
 from core.SessionMgr import SessionMgr
+from core import BotException
 
 
 class ForumMonitor(BotCore, SessionMgr):
@@ -22,15 +20,15 @@ class ForumMonitor(BotCore, SessionMgr):
 
     NEW_POST = 1
 
-    def __init__(self, db_path = 'db.json', login: bool = True):
+    def __init__(self, config: dict, login: bool = True):
         self.__logger = logging.getLogger(__class__.__name__)
         self.__logger.info('ForumMonitor initializing...')
 
-        BotCore.__init__(self, db_path)
+        BotCore.__init__(self, config)
         SessionMgr.__init__(self)
 
         if login:
-            self.login()
+            self.login(self.get_cfg('Core', 'web_username'), self.get_cfg('Core', 'web_password'))
 
         self.__post_rate = 5.0
 
@@ -78,7 +76,7 @@ class ForumMonitor(BotCore, SessionMgr):
         self.__logger.info('Forum monitor db empty; Building new one...')
         table.insert(Document(
             {
-                'latest_post_id' : config.latest_post_id,
+                'latest_post_id' : self.get_cfg('Core', 'latest_post_id'),
             },
             ForumMonitor.DB_ID_FORUM_MONITOR
         ))
@@ -196,7 +194,7 @@ class ForumMonitor(BotCore, SessionMgr):
         while True:
             try:
                 time.sleep(1)  # sleep for 1 second
-                if config.runtime_quit:
+                if self.runtime_quit:
                     break
 
                 if self.get_enable(ForumMonitor.NEW_POST) == True:
@@ -216,7 +214,7 @@ class ForumMonitor(BotCore, SessionMgr):
 
             except KeyboardInterrupt:
                 self.__logger.info(f'Exiting main loop.')
-                config.runtime_quit = True
+                self.runtime_quit = True
             except Exception as e:
                 self.__logger.exception(f'Exception in main loop!')
                 raise e
@@ -228,7 +226,7 @@ class ForumMonitor(BotCore, SessionMgr):
     def __check_new_post(self):
         check_post_ids = self.__check_post_ids[:]
         for i in range(len(check_post_ids)):
-            if config.runtime_quit:
+            if self.runtime_quit:
                 return
 
             try:
@@ -247,7 +245,7 @@ class ForumMonitor(BotCore, SessionMgr):
             except RuntimeError as e:
                 self.__logger.error(f'{e}\nPost id {check_post_ids[i]}'); break
             except KeyboardInterrupt:
-                config.runtime_quit = True; break
+                self.runtime_quit = True; break
             except Exception as e:
                 self.__logger.exception(f'{e}\nPost id {check_post_ids[i]}'); break
 
@@ -255,9 +253,9 @@ class ForumMonitor(BotCore, SessionMgr):
 
             # Too many requests -> start over
             if page.status_code == 429:
-                if self.__post_rate < config.rate_post_max:
+                if self.__post_rate < self.get_cfg('Core', 'rate_post_max'):
                     self.__post_rate += 0.1
-                    if self.__post_rate >= config.rate_post_warn:
+                    if self.__post_rate >= self.get_cfg('Core', 'rate_post_warn'):
                         self.__logger.warning('Forum monitor post rate has reached over 5 sec!')
                 return
 
@@ -269,7 +267,7 @@ class ForumMonitor(BotCore, SessionMgr):
     def handle_new_post(self, check_post_ids: "list[int]", i: int, page: requests.Response):
         # Recheck the posts in the list before this one
         for j in range(i):
-            if config.runtime_quit:
+            if self.runtime_quit:
                 return
 
             time.sleep(self.__post_rate)
@@ -290,7 +288,7 @@ class ForumMonitor(BotCore, SessionMgr):
                 break
 
         # Lower rate since there is a successful request
-        self.__post_rate = max(config.rate_post_min, self.__post_rate - 0.1)
+        self.__post_rate = max(self.get_cfg('Core', 'rate_post_min'), self.__post_rate - 0.1)
 
         # That is our latest post id and no need to check for any other but the next one
         self.set_latest_post(check_post_ids[i] + 1)

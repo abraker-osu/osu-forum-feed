@@ -2,8 +2,6 @@ import requests
 import logging
 import json
 
-import config
-
 
 class DiscordClient():
 
@@ -16,8 +14,8 @@ class DiscordClient():
     logger = logging.getLogger(__name__)
 
     @staticmethod
-    def request(route: str, data: dict):
-        try: response = DiscordClient.session.post(f'http://127.0.0.1:{config.discord_bot_port}/{route}', json=data)
+    def request(port: int, route: str, data: dict):
+        try: response = DiscordClient.session.post(f'http://127.0.0.1:{port}/{route}', json=data)
         except requests.exceptions.ConnectionError as e:
             DiscordClient.logger.error(e)
             return
