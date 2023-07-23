@@ -4,11 +4,11 @@ import requests
 import time
 import logging
 
-from core.botcore.BotBase import BotBase
-from core.botcore.console_framework.Cmd import Cmd
+from core import BotBase
+from core import Cmd
 
-from core.DiscordClient import DiscordClient
-from core.parser import Topic, Post
+from bots.ForumFeedBotCore import DiscordClient
+from core import Topic, Post
 
 import config
 

@@ -12,7 +12,7 @@ from requests.models import Response
 from bs4 import BeautifulSoup
 
 from core.ForumMonitor import ForumMonitor
-from core.parser import Topic, Post, ParserError
+from core.parser import Topic, Post
 
 import config
 

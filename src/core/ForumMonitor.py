@@ -11,29 +11,26 @@ from threading import Thread
 
 import config
 
-from core.botcore import BotCore
-from core.botcore.BotException import BotException
+from core.BotCore import BotCore
+from core import BotException
 from core.SessionMgr import SessionMgr
 
 
-class ForumMonitor(BotCore.BotCore, SessionMgr):
+class ForumMonitor(BotCore, SessionMgr):
 
     DB_ID_FORUM_MONITOR = 0
 
     NEW_POST = 1
 
     def __init__(self, db_path = 'db.json', login: bool = True):
-        BotCore.BotCore.__init__(self)
+        self.__logger = logging.getLogger(__class__.__name__)
+        self.__logger.info('ForumMonitor initializing...')
+
+        BotCore.__init__(self, db_path)
         SessionMgr.__init__(self)
 
         if login:
             self.login()
-
-        self.__logger = logging.getLogger(__class__.__name__)
-        self.__logger.info('ForumMonitor initializing...')
-
-        self.__db = tinydb.TinyDB(db_path)
-        self.__check_db()
 
         self.__post_rate = 5.0
 
@@ -55,19 +52,18 @@ class ForumMonitor(BotCore.BotCore, SessionMgr):
 
 
     def __del__(self):
-        self.__logger.info('Closing db...')
-        self.__db.close()
+        BotCore.__del__(self)
 
 
-    def __check_db(self):
+    def check_db(self):
         """
-        Data fmt:
-        "BotCore": {
+        db format:
+        {
              "0": { "latest_post_id": (post_id: int) }
         }
         """
         self.__logger.info('Checking db...')
-        table = self.__db.table('BotCore')
+        table = BotCore.get_db_table(self, 'BotCore')
 
         entry = table.get(doc_id=ForumMonitor.DB_ID_FORUM_MONITOR)
         if not isinstance(entry, type(None)):
@@ -88,10 +84,6 @@ class ForumMonitor(BotCore.BotCore, SessionMgr):
         ))
 
 
-    def get_db(self, table_name: str) -> tinydb.TinyDB.table_class:
-        return self.__db.table(table_name)
-
-
     def get_latest_post(self) -> int:
         if not self.__latest_post_id:
             self.__logger.debug('Latest post id is not set; retrieving from db...')
@@ -102,12 +94,12 @@ class ForumMonitor(BotCore.BotCore, SessionMgr):
 
     def __retrieve_latest_post(self) -> int:
         """
-        Data fmt:
-        "BotCore": {
+        db format:
+        {
              "0": { "latest_post_id": (post_id: int) }
         }
         """
-        table = self.__db.table('BotCore')
+        table = self.get_db_table('BotCore')
 
         entry = table.get(doc_id=ForumMonitor.DB_ID_FORUM_MONITOR)
         if isinstance(entry, type(None)):
@@ -121,12 +113,12 @@ class ForumMonitor(BotCore.BotCore, SessionMgr):
 
     def set_latest_post(self, post_id: int):
         """
-        Data fmt:
-        "BotCore": {
+        db format:
+        {
              "0": { "latest_post_id": (post_id: int) }
         }
         """
-        table = self.__db.table('BotCore')
+        table = self.get_db_table('BotCore')
         table.upsert(Document(
             {
                 'latest_post_id' : post_id

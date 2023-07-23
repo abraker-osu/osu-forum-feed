@@ -2,17 +2,16 @@ import logging
 import tinydb
 import requests
 
-from core.botcore.console_framework.Cmd import Cmd
-
 from typing import TYPE_CHECKING, Union, Optional
 if TYPE_CHECKING:
+    from core import Cmd
     from core import ForumMonitor
     from core.parser import Post, Topic
 
 
 class BotBase:
 
-    def __init__(self, core: "ForumMonitor", cmd: Cmd, name: str, enable: bool):
+    def __init__(self, core: "ForumMonitor", cmd: "Cmd", name: str, enable: bool):
         self.logger    = logging.getLogger('bots/' + name)
         self.__core    = core
         self.__enable  = enable
@@ -60,8 +59,8 @@ class BotBase:
         raise NotImplementedError(msg)
 
 
-    def get_db(self, name: str) -> tinydb.TinyDB.table_class:
-        return self.__core.get_db(f'{self.__name}_{name}')
+    def get_db_table(self, name: str) -> tinydb.TinyDB.table_class:
+        return self.__core.get_db_table(f'{self.__name}_{name}')
 
 
     def get_name(self) -> str:

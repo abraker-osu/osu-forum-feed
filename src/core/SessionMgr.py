@@ -7,7 +7,7 @@ import json
 
 from bs4 import BeautifulSoup
 
-from core.botcore.BotException import BotException
+from core.BotException import BotException
 from .parser import Topic, Post
 
 from config import web_username, web_password

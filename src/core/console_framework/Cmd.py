@@ -1,3 +1,4 @@
+from typing import Optional
 import logging
 
 from config import discord_admin_user_id
@@ -19,7 +20,7 @@ class Cmd():
         raise NotImplementedError(msg)
 
 
-    def get_cmd_dict(self, prefix: str = '', require_help: bool = True):
+    def get_cmd_dict(self, prefix: str = '', require_help: bool = True) -> dict:
         cmd_dict = { attr.replace('cmd_', prefix) : getattr(self, attr)
             for attr in dir(self)
             if attr.startswith('cmd_') and hasattr(self, attr)
@@ -46,7 +47,7 @@ class Cmd():
 
 
     @staticmethod
-    def arg(var_types, is_optional, info):
+    def arg(var_types, is_optional: bool, info: str) -> str:
         if type(var_types) is not list:
             var_types = [ var_types ]
 
@@ -57,13 +58,13 @@ class Cmd():
 
 
     @staticmethod
-    def ok(msg=None):
+    def ok(msg: Optional[str] = None) -> dict:
         if msg == None: return { 'status' : 0 }
         else:           return { 'status' : 0, 'msg' : msg }
 
 
     @staticmethod
-    def err(msg=None):
+    def err(msg: Optional[str] = None) -> dict:
         if msg == None: return { 'status' : -1 }
         else:           return { 'status' : -1, 'msg' : msg }
 
@@ -80,7 +81,7 @@ class Cmd():
         raise NotImplementedError(msg)
 
 
-    def validate_special_perm(self, requestor_id, args):
+    def validate_special_perm(self, requestor_id: int, args: tuple):
         msg = '\'validate_special\' not implemented'
         self.logger.error(msg)
         raise NotImplementedError(msg)

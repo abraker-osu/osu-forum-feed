@@ -1,21 +1,28 @@
+from typing import Union
 import os
 import importlib
 import logging
 
+import tinydb
+
 import config
-from core.botcore.BotException import BotException
+from core.BotException import BotException
 
 from .BotBase import BotBase
+from .parser import Post, Topic
 
 
 class BotCore():
 
     _version = 20210328
 
-    def __init__(self):
+    def __init__(self, db_path: str):
         self.__logger = logging.getLogger(__class__.__name__)
         self.__logger.info(f'Forum Bot version {BotCore._version}')
         self.__logger.info('BotCore initializing...')
+
+        self.__db = tinydb.TinyDB(db_path)
+        self.check_db()
 
         self.__bots: dict[str, BotBase] = {}
 
@@ -23,6 +30,11 @@ class BotCore():
         except Exception as e:
             self.__logger.critical(str(e))
             raise e
+
+
+    def __del__(self):
+        self.__logger.info('Closing db...')
+        self.__db.close()
 
 
     def __init_bots(self):
@@ -38,8 +50,7 @@ class BotCore():
             self.__logger.info(f'Importing bots.{bot}')
             module = importlib.import_module(f'bots.{bot}')
 
-            try:
-                self.__bots[bot] = getattr(module, bot)(self)
+            try: self.__bots[bot] = getattr(module, bot)(self)
             except Exception as e:
                 msg = (
                     f'Cannot load module for bot: {module}\n'
@@ -59,10 +70,21 @@ class BotCore():
                 raise BotException(self.__logger, msg)
 
 
-    def forum_driver(self, forum_data):
+    def forum_driver(self, forum_data: Union[Post, Topic]):
         for bot in self.__bots.values():
             bot.event(forum_data)
 
 
-    def get_bot(self, bot_name):
-        return self.__bots[bot_name]
+    def get_bot(self, name: str):
+        return self.__bots[name]
+
+
+    def get_db_table(self, name: str) -> tinydb.TinyDB.table_class:
+        return self.__db.table(name)
+
+
+    def check_db(self):
+        raise NotImplementedError
+
+
+

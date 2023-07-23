@@ -9,7 +9,7 @@ import traceback
 import os
 
 import config
-from core.botcore.Logger import Logger
+from core.Logger import Logger
 from core import ForumMonitor
 
 

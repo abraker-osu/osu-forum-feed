@@ -8,9 +8,9 @@ import datetime
 from dateutil.parser import parse
 from dateutil.relativedelta import relativedelta
 
-from core.botcore.BotBase import BotBase
-from core.botcore.BotException import BotException
-from core.botcore.console_framework.Cmd import Cmd
+from core.BotBase import BotBase
+from core.BotException import BotException
+from core.console_framework import Cmd
 
 from core.parser import Topic, Post
 from core.SessionMgr import SessionMgr
@@ -34,7 +34,18 @@ class ThreadNecroBot(BotBase, ThreadNecroBotCore):
 
 
     def post_init(self):
-        ThreadNecroBotCore.__init__(self)
+        ThreadNecroBotCore.__init__(self,
+            db_tables = {
+                DB_ENUM.ALL_TIME_LOG:    self.get_db_table('all_time_log'),
+                DB_ENUM.ALL_TIME_SCORES: self.get_db_table('all_time_scores'),
+                DB_ENUM.ALL_TIME_USER:   self.get_db_table('all_time_user'),
+
+                DB_ENUM.MONTHLY_LOG:     self.get_db_table('monthly_log'),
+                DB_ENUM.MONTHLY_SCORES:  self.get_db_table('monthly_scores'),
+                DB_ENUM.MONTHLY_USER:    self.get_db_table('monthly_user'),
+                DB_ENUM.MONTHLY_WINNERS: self.get_db_table('monthly_winners'),
+            }
+        )
 
 
     def filter_data(self, forum_data: Union[Post, Topic]) -> bool:
@@ -58,7 +69,7 @@ class ThreadNecroBot(BotBase, ThreadNecroBotCore):
         data = None
 
         if not post.prev_post:
-            msg = 'Previous post does not exist; Current post id: {post.id}'
+            msg = f'Previous post does not exist; Current post id: {post.id}'
             raise BotException(self.logger, msg, show_traceback=False)
 
         # \TODO: Figure out how to ignore banned user's post entirely (not affect the game)
@@ -84,17 +95,15 @@ class ThreadNecroBot(BotBase, ThreadNecroBotCore):
 
 
     def write_post(self):
-        db = self.get_db(__class__.__name__)
+        top_10_all_time_text     = self.get_top_10_text(self.get_top_10_list(DB_ENUM.DB_TYPE_ALL_TIME))
+        top_scores_all_time_text = self.get_top_scores_text(self.get_top_scores_list(DB_ENUM.DB_TYPE_ALL_TIME))
+        log_all_time_text        = self.get_forum_log_text(self.get_log_list(DB_ENUM.DB_TYPE_ALL_TIME))
 
-        top_10_all_time_text     = self.get_top_10_text(self.logger, db, self.get_top_10_list(self.logger, db, DB_ENUM.ALL_TIME))
-        top_scores_all_time_text = self.get_top_scores_text(self.logger, self.get_top_scores_list(self.logger, db, DB_ENUM.ALL_TIME))
-        log_all_time_text        = self.get_forum_log_text(self.logger, self.get_log_list(self.logger, db, DB_ENUM.ALL_TIME))
+        top_10_monthly_text     = self.get_top_10_text(self.get_top_10_list(DB_ENUM.DB_TYPE_MONTHLY))
+        top_scores_monthly_text = self.get_top_scores_text(self.get_top_scores_list(DB_ENUM.DB_TYPE_MONTHLY))
+        log_monthly_text        = self.get_forum_log_text(self.get_log_list(DB_ENUM.DB_TYPE_MONTHLY))
 
-        top_10_monthly_text     = self.get_top_10_text(self.logger, db, self.get_top_10_list(self.logger, db, DB_ENUM.MONTHLY))
-        top_scores_monthly_text = self.get_top_scores_text(self.logger, self.get_top_scores_list(self.logger, db, DB_ENUM.MONTHLY))
-        log_monthly_text        = self.get_forum_log_text(self.logger, self.get_log_list(self.logger, db, DB_ENUM.MONTHLY))
-
-        monthly_winners_text    = self.get_monthly_winners_text(self.logger, self.get_monthly_winners_list(self.logger, db))
+        monthly_winners_text    = self.get_monthly_winners_text(self.get_monthly_winners_list())
 
         # \TODO: Investigate the total score mismatching for same user
         # For the user [Taiga] the score went down by some amount from before to after when the score is only added
@@ -148,14 +157,15 @@ class ThreadNecroBot(BotBase, ThreadNecroBotCore):
         SessionMgr.edit_post(self.main_post, post_content, append=False)
 
 
-    def calculate_score_gained_prev_user(self, prev_post_info, data):
-        if not prev_post_info: return -1
+    def calculate_score_gained_prev_user(self, prev_post_info: dict, data: dict):
+        if not prev_post_info:
+            return -1
 
         # Don't halve lower than this, no point
         if float(prev_post_info['total_score']) < -1000000000:
             return -1
 
-        deleted_post = self.is_deleted_post(self.logger, prev_post_info, data)
+        deleted_post = self.is_deleted_post(prev_post_info, data)
         halved_score = float(prev_post_info['total_score'])/2.0
 
         try:
@@ -166,8 +176,8 @@ class ThreadNecroBot(BotBase, ThreadNecroBotCore):
         return added_score
 
 
-    def calculate_score_gained_curr_user(self, prev_post_info, data):
-        multi_post = self.is_multi_post(self.logger, prev_post_info, data)
+    def calculate_score_gained_curr_user(self, prev_post_info: dict, data: dict):
+        multi_post = self.is_multi_post(prev_post_info, data)
 
         if multi_post:
             added_score = -self.multi_post_pts_penalty
@@ -178,9 +188,9 @@ class ThreadNecroBot(BotBase, ThreadNecroBotCore):
         return added_score
 
 
-    def process_monthly_winner_event(self, db):
+    def process_monthly_winner_event(self):
         current_date = datetime.datetime.now().replace(tzinfo=None)
-        monthly_winners_list = self.get_monthly_winners_list(self.logger, db)
+        monthly_winners_list = self.get_monthly_winners_list()
 
         if not monthly_winners_list:
             starting_date = self.get_post(self.main_post).date.replace(tzinfo=None)
@@ -190,8 +200,8 @@ class ThreadNecroBot(BotBase, ThreadNecroBotCore):
             target_delta  = next_date - starting_date
 
             if current_delta >= target_delta:
-                self.update_monthly_winners(self.logger, db)
-                self.reset_monthly_data(self.logger, db)
+                self.update_monthly_winners()
+                self.reset_monthly_data()
 
                 self.logger.info('Monthly winner recorded; New Monthly Chart made!')
 
@@ -203,21 +213,21 @@ class ThreadNecroBot(BotBase, ThreadNecroBotCore):
             target_delta  = next_date - previous_date
 
             if current_delta >= target_delta:
-                self.update_monthly_winners(self.logger, db)
-                self.reset_monthly_data(self.logger, db)
+                self.update_monthly_winners()
+                self.reset_monthly_data()
 
                 self.logger.info('Monthly winner recorded; New Monthly Chart made!')
 
 
-    def process_prev_user(self, db, prev_post_info, data):
+    def process_prev_user(self, prev_post_info: dict, data: dict):
         # If prev_post_info is none (prev post doesn't exist yet)
         if not prev_post_info:
             return
 
-        is_multi_post = self.is_multi_post(self.logger, prev_post_info, data)
-        is_deleted_post = self.is_deleted_post(self.logger, prev_post_info, data)
+        is_multi_post   = self.is_multi_post(prev_post_info, data)
+        is_deleted_post = self.is_deleted_post(prev_post_info, data)
 
-        added_score = self.calculate_score_gained_prev_user(self.logger, prev_post_info, data)
+        added_score = self.calculate_score_gained_prev_user(prev_post_info, data)
         if added_score == 0:
             return
 
@@ -229,42 +239,42 @@ class ThreadNecroBot(BotBase, ThreadNecroBotCore):
                 'post_id'     : prev_post_info['post_id']
             }
 
-            self.update_user_data(self.logger, db, user_data, DB_ENUM.ALL_TIME)
-            self.update_user_data(self.logger, db, user_data, DB_ENUM.MONTHLY)
+            self.update_user_data(user_data, DB_ENUM.DB_TYPE_ALL_TIME)
+            self.update_user_data(user_data, DB_ENUM.DB_TYPE_MONTHLY)
 
-            user_score_all_time = self.get_user_points(self.logger, db, prev_post_info['user_id'], DB_ENUM.ALL_TIME)
-            user_score_monthly  = self.get_user_points(self.logger, db, prev_post_info['user_id'], DB_ENUM.MONTHLY)
+            user_score_all_time = self.get_user_points(prev_post_info['user_id'], DB_ENUM.DB_TYPE_ALL_TIME)
+            user_score_monthly  = self.get_user_points(prev_post_info['user_id'], DB_ENUM.DB_TYPE_MONTHLY)
 
             if is_multi_post:   log_timestamp = self.get_timestamp(ThreadNecroBotCore.MULTI_TIMESTAMP)
             if is_deleted_post: log_timestamp = self.get_timestamp(ThreadNecroBotCore.DELET_TIMESTAMP)
 
             log_data = {
-                'time'        : str(log_timestamp),
-                'user_name'   : str(prev_post_info['user_name']),
-                'user_id'     : str(prev_post_info['user_id']),
-                'post_id'     : str(prev_post_info['post_id']),
-                'added_score' : str('%.3f'%(added_score)),
-                'total_score' : str(user_score_all_time)
+                'time'        : f'{log_timestamp}',
+                'user_name'   : f'{prev_post_info["user_name"]}',
+                'user_id'     : f'{prev_post_info["user_id"]}',
+                'post_id'     : f'{prev_post_info["post_id"]}',
+                'added_score' : f'{added_score:.3f}',
+                'total_score' : f'{user_score_all_time}'
             }
-            self.update_log_data(self.logger, db, log_data, DB_ENUM.ALL_TIME)
+            self.update_log_data(log_data, DB_ENUM.DB_TYPE_ALL_TIME)
 
             log_data = {
-                'time'        : str(log_timestamp),
-                'user_name'   : str(prev_post_info['user_name']),
-                'user_id'     : str(prev_post_info['user_id']),
-                'post_id'     : str(prev_post_info['post_id']),
-                'added_score' : str('%.3f'%(added_score)),
-                'total_score' : str(user_score_monthly)
+                'time'        : f'{log_timestamp}',
+                'user_name'   : f'{prev_post_info["user_name"]}',
+                'user_id'     : f'{prev_post_info["user_id"]}',
+                'post_id'     : f'{prev_post_info["post_id"]}',
+                'added_score' : f'{added_score:.3f}',
+                'total_score' : f'{user_score_monthly}',
             }
-            self.update_log_data(self.logger, db, log_data, DB_ENUM.MONTHLY)
+            self.update_log_data(log_data, DB_ENUM.DB_TYPE_MONTHLY)
 
         except KeyError as e:
             self.logger.error(str(e))
             return
 
 
-    def process_curr_user(self, db, prev_post_info, data):
-        added_score = self.calculate_score_gained_curr_user(self.logger, prev_post_info, data)
+    def process_curr_user(self, prev_post_info: dict, data: dict):
+        added_score = self.calculate_score_gained_curr_user(prev_post_info, data)
 
         user_data = {
             'added_score' : added_score,
@@ -273,11 +283,11 @@ class ThreadNecroBot(BotBase, ThreadNecroBotCore):
             'post_id'     : data['curr_post_id']
         }
 
-        self.update_user_data(self.logger, db, user_data, DB_ENUM.ALL_TIME)
-        self.update_user_data(self.logger, db, user_data, DB_ENUM.MONTHLY)
+        self.update_user_data(user_data, DB_ENUM.DB_TYPE_ALL_TIME)
+        self.update_user_data(user_data, DB_ENUM.DB_TYPE_MONTHLY)
 
-        user_score_all_time = self.get_user_points(self.logger, db, data['curr_user_id'], DB_ENUM.ALL_TIME)
-        user_score_monthly  = self.get_user_points(self.logger, db, data['curr_user_id'], DB_ENUM.MONTHLY)
+        user_score_all_time = self.get_user_points(data['curr_user_id'], DB_ENUM.DB_TYPE_ALL_TIME)
+        user_score_monthly  = self.get_user_points(data['curr_user_id'], DB_ENUM.DB_TYPE_MONTHLY)
 
         log_data = {
             'time'        : str(data['curr_post_time']),
@@ -287,7 +297,7 @@ class ThreadNecroBot(BotBase, ThreadNecroBotCore):
             'added_score' : str('%.3f'%(added_score)),
             'total_score' : str(user_score_all_time)
         }
-        self.update_log_data(self.logger, db, log_data, DB_ENUM.ALL_TIME)
+        self.update_log_data(log_data, DB_ENUM.DB_TYPE_ALL_TIME)
 
         log_data = {
             'time'        : str(data['curr_post_time']),
@@ -297,7 +307,7 @@ class ThreadNecroBot(BotBase, ThreadNecroBotCore):
             'added_score' : str('%.3f'%(added_score)),
             'total_score' : str(user_score_monthly)
         }
-        self.update_log_data(self.logger, db, log_data, DB_ENUM.MONTHLY)
+        self.update_log_data(log_data, DB_ENUM.DB_TYPE_MONTHLY)
 
         new_score_data = {
             'time'        : str(data['curr_post_time']),
@@ -306,18 +316,18 @@ class ThreadNecroBot(BotBase, ThreadNecroBotCore):
             'post_id'     : str(data['curr_post_id']),
             'added_score' : '%.3f'%(added_score),
         }
-        self.update_top_score_data(self.logger, db, new_score_data, DB_ENUM.ALL_TIME)
-        self.update_top_score_data(self.logger, db, new_score_data, DB_ENUM.MONTHLY)
+        self.update_top_score_data(new_score_data, DB_ENUM.DB_TYPE_ALL_TIME)
+        self.update_top_score_data(new_score_data, DB_ENUM.DB_TYPE_MONTHLY)
 
 
-    def process_user_bonus(self, db, prev_post_info, data):
-        rank = self.get_user_rank(self.logger, db, str(data['curr_user_id']), DB_ENUM.ALL_TIME)
+    def process_user_bonus(self, prev_post_info: dict, data: dict):
+        rank = self.get_user_rank(str(data['curr_user_id']), DB_ENUM.DB_TYPE_ALL_TIME)
         if not rank: return
 
         number = random.randint(1, pow(2, rank))
         if number != 1: return
 
-        added_score = float(self.get_top_scores_list(self.logger, db, DB_ENUM.ALL_TIME)[-1]['added_score'])
+        added_score = float(self.get_top_scores_list(DB_ENUM.DB_TYPE_ALL_TIME)[-1]['added_score'])
 
         user_data = {
             'added_score' : added_score,
@@ -326,11 +336,11 @@ class ThreadNecroBot(BotBase, ThreadNecroBotCore):
             'post_id'     : data['curr_post_id']
         }
 
-        self.update_user_data(self.logger, db, user_data, DB_ENUM.ALL_TIME)
-        self.update_user_data(self.logger, db, user_data, DB_ENUM.MONTHLY)
+        self.update_user_data(user_data, DB_ENUM.DB_TYPE_ALL_TIME)
+        self.update_user_data(user_data, DB_ENUM.DB_TYPE_MONTHLY)
 
-        user_score_all_time = self.get_user_points(self.logger, db, data['curr_user_id'], DB_ENUM.ALL_TIME)
-        user_score_monthly  = self.get_user_points(self.logger, db, data['curr_user_id'], DB_ENUM.MONTHLY)
+        user_score_all_time = self.get_user_points(data['curr_user_id'], DB_ENUM.DB_TYPE_ALL_TIME)
+        user_score_monthly  = self.get_user_points(data['curr_user_id'], DB_ENUM.DB_TYPE_MONTHLY)
 
         log_data = {
             'time'        : str(self.get_timestamp(ThreadNecroBotCore.BONUS_TIMESTAMP)),
@@ -340,7 +350,7 @@ class ThreadNecroBot(BotBase, ThreadNecroBotCore):
             'added_score' : str('%.3f'%(added_score)),
             'total_score' : str(user_score_all_time)
         }
-        self.update_log_data(self.logger, db, log_data, DB_ENUM.ALL_TIME)
+        self.update_log_data(log_data, DB_ENUM.DB_TYPE_ALL_TIME)
 
         log_data = {
             'time'        : str(self.get_timestamp(ThreadNecroBotCore.BONUS_TIMESTAMP)),
@@ -350,7 +360,7 @@ class ThreadNecroBot(BotBase, ThreadNecroBotCore):
             'added_score' : str('%.3f'%(added_score)),
             'total_score' : str(user_score_monthly)
         }
-        self.update_log_data(self.logger, db, log_data, DB_ENUM.MONTHLY)
+        self.update_log_data(log_data, DB_ENUM.DB_TYPE_MONTHLY)
 
 
     class BotCmd(Cmd):
@@ -397,24 +407,20 @@ class ThreadNecroBot(BotBase, ThreadNecroBotCore):
             'user_name' : Cmd.arg(str, False, 'Name of the user to print the number of point of'),
             'db_type'   : Cmd.arg(str, False, 'all_time or monthly')
         })
-        def cmd_get_user_points(self, user_name, db_type):
-            if   db_type == 'all_time': db_type = DB_ENUM.ALL_TIME
-            elif db_type == 'monthly':  db_type = DB_ENUM.MONTHLY
+        def cmd_get_user_points(self, user_name: str, db_type: str):
+            if   db_type == 'all_time': user_data_table = self.obj.db_tables[DB_ENUM.ALL_TIME_USER]
+            elif db_type == 'monthly':  user_data_table = self.obj.db_tables[DB_ENUM.MONTHLY_USER]
             else: return Cmd.err('Invalid db type specified. Use "all_time" or "monthly"')
 
-            user_data_collection = self.obj.get_db_table(self.obj.get_db(db_type, DB_ENUM.USER_DATA))
-
             # Request
-            query      = { 'user_name' : str(user_name) }
-            projection = { 'points' : 1 }
-            cursor = user_data_collection.find_one(query, projection=projection)
+            query = tinydb.Query()
+            entry = user_data_table.get(query.user_name == str(user_name))
 
             # Process
-            if cursor:  response = str(user_name) + ' has ' + str(cursor['points']) + ' pts'
-            else:       return Cmd.err('Unable to find user "' + user_name + '"')
+            if not entry:
+                return Cmd.err(f'Unable to find user "{user_name}"')
 
-            if cursor: del cursor
-            return Cmd.ok(response)
+            return Cmd.ok(f'{user_name} has {entry["points"]} pts')
 
 
         @Cmd.help(
@@ -426,31 +432,36 @@ class ThreadNecroBot(BotBase, ThreadNecroBotCore):
             'db_type'   : Cmd.arg(str,   False, 'all_time or monthly')
         })
         def cmd_add_user_points(self, cmd_key, user_name, points, db_type):
+            """
+            db Format:
+            {
+                user_id : { 'points' : '...', 'user_name' : '...', 'post_id' : '...' },
+                user_id : { 'points' : '...', 'user_name' : '...', 'post_id' : '...' },
+                ...
+            }
+            """
             if not self.validate_request(cmd_key):
-                return Cmd.err(f'Insufficient permissions')
+                return Cmd.err('Insufficient permissions')
 
-            if   db_type == 'all_time': db_type = DB_ENUM.ALL_TIME
-            elif db_type == 'monthly':  db_type = DB_ENUM.MONTHLY
-            else: return Cmd.err('Invalid db type specified. Use "all_time" or "monthly"')
-
-            user_data_collection = self.obj.get_db_table(self.obj.get_db(db_type, DB_ENUM.USER_DATA))
+            if   db_type == 'all_time': db_type = DB_ENUM.DB_TYPE_ALL_TIME; user_data_table = self.obj.db_tables[DB_ENUM.ALL_TIME_USER]
+            elif db_type == 'monthly':  db_type = DB_ENUM.DB_TYPE_MONTHLY;  user_data_table = self.obj.db_tables[DB_ENUM.MONTHLY_USER]
+            else:
+                return Cmd.err('Invalid db type specified. Use "all_time" or "monthly"')
 
             # Request
-            query      = { 'user_name' : str(user_name) }
-            projection = { 'points' : 1, 'user_id' : 1 }
-
-            cursor = user_data_collection.find_one(query, projection=projection)
-            if not cursor: return Cmd.err('Unable to find user "' + user_name + '"')
+            query = tinydb.Query()
+            entry = user_data_table.get(query.user_name == str(user_name))
 
             # Process
-            new_points = float(cursor['points']) + float(points)
-            user_id    = cursor['user_id']
-            if cursor: del cursor
+            if not entry:
+                return Cmd.err(f'Unable to find user "{user_name}"')
+
+            new_points = float(entry['points']) + float(points)
+            user_id    = entry.doc_id
 
             # Update
-            query = { 'user_id' : str(user_id) }
-            value = { 'points'  : float(new_points) }
-            user_data_collection.update_one(query, { "$set" : value }, upsert=True)
+            entry['points'] = new_points
+            user_data_table.update(entry, doc_ids=[ entry.doc_id ])
 
             log_data = {
                 'time'        : str(self.obj.get_timestamp(ThreadNecroBotCore.ADMIN_TIMESTAMP)),
@@ -460,10 +471,11 @@ class ThreadNecroBot(BotBase, ThreadNecroBotCore):
                 'added_score' : str('%.3f'%(float(points))),
                 'total_score' : str('%.3f'%(float(new_points)))
             }
-            self.obj.update_log_data(self.obj._logger, self.obj.get_db_table, log_data, db_type)
+            self.obj.update_log_data(log_data, db_type)
 
-            try: self.obj.write_post(self.obj._logger, self.obj.get_db_table)
-            except: pass
+            try: self.obj.write_post()
+            except:
+                pass
 
             return Cmd.ok(f'{user_name} now has {new_points} pts - {db_type}')
 
@@ -477,7 +489,7 @@ class ThreadNecroBot(BotBase, ThreadNecroBotCore):
             if not self.validate_request(cmd_key):
                 return Cmd.err(f'Insufficient permissions')
 
-            return Cmd.ok(str(self.obj.get_prev_post_info(self.logger, self.obj.get_db_table)))
+            return Cmd.ok(str(self.obj.get_prev_post_info(self.obj.get_db_table)))
 
 
         @Cmd.help(
@@ -493,7 +505,7 @@ class ThreadNecroBot(BotBase, ThreadNecroBotCore):
             return Cmd.err('TODO')
             '''
             if user_id not in self.obj.banned:
-                # \TODO: Wipe user from db
+                # TODO: Wipe user from db
                 self.obj.banned.add(user_id)
                 return { 'status' : 0, 'msg' : 'banned player' }
 
@@ -527,7 +539,7 @@ class ThreadNecroBot(BotBase, ThreadNecroBotCore):
             'user_id' : Cmd.arg(int, False, 'User id')
         })
         def cmd_get_user_rank(self, user_id):
-            rank = self.obj.get_user_rank(self.logger, self.obj.get_db_table, user_id)
+            rank = self.obj.get_user_rank(user_id)
             if not rank: return Cmd.err('user not found')
 
             return Cmd.err(f'User is ranked {rank}')

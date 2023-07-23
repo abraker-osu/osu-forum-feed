@@ -1,9 +1,8 @@
 from typing import Union
 
-from core.botcore.BotBase import BotBase
-from core.botcore.console_framework.Cmd import Cmd
-
-from core.parser import Post, Topic
+from core import BotBase
+from core import Cmd
+from core import Post, Topic
 
 
 # This to be used as a template for other bots with basic explanatons what the important parts do
