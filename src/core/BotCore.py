@@ -79,9 +79,9 @@ class BotCore():
                 raise BotException(self.__logger, msg)
 
 
-    def forum_driver(self, forum_data: Union[Post, Topic]):
+    def forum_driver(self, post: Post):
         for bot in self.__bots.values():
-            bot.event(forum_data)
+            bot.event(post)
 
 
     def get_bot(self, name: str):

@@ -50,18 +50,15 @@ class ThreadNecroBot(BotBase, ThreadNecroBotCore):
         )
 
 
-    def filter_data(self, forum_data: Union[Post, Topic]) -> bool:
-        if not isinstance(forum_data, Post):
+    def filter_data(self, post: Post) -> bool:
+        if post.topic.subforum_id != self.subforum_id:
             return False
 
-        if forum_data.topic.subforum_id != self.subforum_id:
+        if post.topic.id != self.topic_id:
             return False
 
-        if forum_data.topic.id != self.topic_id:
-            return False
-
-        if forum_data.creator.id in self.banned:
-            self.logger.info(f'Banned user posted; id: {forum_data.creator.id}   username: {forum_data.creator.name}')
+        if post.creator.id in self.banned:
+            self.logger.info(f'Banned user posted; id: {post.creator.id}   username: {post.creator.name}')
             return False
 
         return True

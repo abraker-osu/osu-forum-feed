@@ -42,6 +42,9 @@ class TestBotCore:
 
                 'post_id_dbg'  :  random.randint(1, 10000),
                 'topic_id_dbg' :  random.randint(1, 10000),
+            },
+            'ForumFeedBot' : {
+                'discord_bot_port' : random.randint(1, 10000),
             }
         })
 

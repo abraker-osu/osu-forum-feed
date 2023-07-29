@@ -21,7 +21,7 @@ class TestBot(BotBase):
 
 
     # In here goes all the code for reading comment json
-    def process_data(self, forum_data: Union[Post, Topic]):
+    def process_data(self, forum_data: Post):
         self.logger.debug('Bot process_data')
         return {}
 

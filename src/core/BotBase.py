@@ -35,7 +35,7 @@ class BotBase:
         return self.__enable
 
 
-    def event(self, forum_data: "Union[Post, Topic]"):
+    def event(self, forum_data: "Post"):
         if not self.__enable:
             return
 
@@ -48,12 +48,12 @@ class BotBase:
             return
 
 
-    def filter_data(self, forum_data: "Union[Post, Topic]") -> bool:
+    def filter_data(self, forum_data: "Post") -> bool:
         return True
 
 
     # process_data is meant to be used by the bot to do whatever it wants with the data it gets
-    def process_data(self, forum_data: "Union[Post, Topic]"):
+    def process_data(self, forum_data: "Post"):
         msg = 'process_data method not implemented'
         self.logger.error(msg)
         raise NotImplementedError(msg)

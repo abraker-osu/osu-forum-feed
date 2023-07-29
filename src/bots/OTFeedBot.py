@@ -11,22 +11,21 @@ from bots.ForumFeedBotCore import DiscordClient
 from core import Topic, Post
 
 
-class ForumFeedBot(BotBase):
+class OTFeedBot(BotBase):
 
     def __init__(self, botcore):
-        BotBase.__init__(self, botcore, self.BotCmd, self.__class__.__name__, enable = False)
+        BotBase.__init__(self, botcore, self.BotCmd, self.__class__.__name__, enable = True)
 
 
     def post_init(self):
         pass
 
 
-    def filter_data(self, forum_data: Union[Post, Topic]):
-        return True
+    def filter_data(self, post: Post):
+        return int(post.topic.subforum_id) == 52
 
 
-    def process_data(self, forum_data):
-        post = forum_data.first_post if isinstance(forum_data, Topic) else forum_data
+    def process_data(self, post: Post):
         self.logger.debug(f'New post: https://osu.ppy.sh/forum/p/{post.id}')
 
         # Get previous post's timestamp
@@ -44,6 +43,7 @@ class ForumFeedBot(BotBase):
             'first_post_id'  : post.topic.first_post.id,
             'thread_title'   : post.topic.name,
             'post_id'        : str(post.id),
+            'first_post_id'  : post.topic.first_post.id,
             'username'       : post.creator.name,
             'user_id'        : post.creator.id,
             'avatar_url'     : post.creator.avatar,
@@ -54,11 +54,11 @@ class ForumFeedBot(BotBase):
 
 
     def __send_data(self, logger: logging.Logger, route: str, data: "dict[str, str]"):
-        handle_rate = self.__core.get_cfg('Core', 'rate_post_min')
+        handle_rate = self.get_cfg('Core', 'rate_post_min')
 
         while True:
             try:
-                DiscordClient.request(self.__core.get_cfg('Core', 'api_port'), route, data)
+                DiscordClient.request(self.get_cfg('ForumFeedBot', 'discord_bot_port'), route, data)
                 break
             except (requests.exceptions.Timeout, requests.exceptions.ConnectionError):
                 logger.warn(f'No Discord feed server reply! Retrying in {handle_rate} second(s)...')

@@ -9,31 +9,25 @@ class OTBot(BotBase):
 
     def __init__(self, core):
         BotBase.__init__(self, core, self.BotCmd, self.__class__.__name__, enable = True)
-        self.__subforum_id = '52'
 
 
     def post_init(self):
         pass
 
 
-    def filter_data(self, forum_data: Union[Post, Topic]):
-        return (forum_data.topic.subforum_id == self.__subforum_id)
+    def filter_data(self, post: Post):
+        return int(post.topic.subforum_id) == 52
 
 
-    def process_data(self, forum_data: Union[Post, Topic]):
-        self.logger.debug('Bot read')
-
-        if not isinstance(forum_data, Post):
-            return
-
-        self.logger.info(f'Found OT post by: {forum_data.creator.name} in thread: {forum_data.topic.name}')
+    def process_data(self, post: Post):
+        self.logger.info(f'Found OT post by: {post.creator.name} in thread: {post.topic.name}')
 
         data = {}
-        if forum_data.creator.name == 'abraker':
-            content = forum_data.contents_text
+        if post.creator.name == 'abraker':
+            content = post.contents_text
             if content.find('owh') != -1:
-                data['post_id']    = forum_data.id
-                data['post_count'] = int(forum_data.topic.post_count)
+                data['post_id']    = post.id
+                data['post_count'] = int(post.topic.post_count)
 
         if 'post_id' not in data:
             return
