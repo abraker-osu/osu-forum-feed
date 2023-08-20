@@ -1,9 +1,10 @@
 from typing import Union, Optional
 
 import logging
-import requests
 import time
 import json
+
+from requests import Session
 
 from bs4 import BeautifulSoup
 
@@ -16,7 +17,7 @@ class SessionMgr():
 
     def __init__(self):
         self.__logger  = logging.getLogger(__class__.__name__)
-        self.__session = requests.session()
+        self.__session = Session()
 
         self.__logged_in = False
         self.__last_status_code = None
@@ -69,7 +70,7 @@ class SessionMgr():
         # Validate log in
         response = self.fetch_web_data('https://osu.ppy.sh')
         if not 'XSRF-TOKEN' in response.cookies:
-            raise BotException(self.__logger, 'Unable to log in; Cookies indicate login failed!')
+            raise BotException(self.__logger, f'Unable to log in; Cookies indicate login failed!')
 
         self.__check_account_verification(response)
         self.__logged_in = True
@@ -80,9 +81,11 @@ class SessionMgr():
     def __check_account_verification(self, response: requests.Response):
         check = False
         while True:
-            if response.text.find('Account Verification') == -1: break
+            if response.text.find('Account Verification') == -1:
+                break
+
             if not check:
-                self.__logger.warn('Need response to verification email before continuing')
+                self.__logger.warning('Need response to verification email before continuing')
                 check = True
 
             response = self.fetch_web_data('https://osu.ppy.sh')
@@ -112,11 +115,9 @@ class SessionMgr():
 
     def get_post_bbcode(self, post_id: Union[int, str]):
         if not self.__logged_in:
-            self.login()
+            raise BotException(self.__logger, 'Must be logged in first')
 
-        # TODO: Log in if not logged in?
         response = self.fetch_web_data(f'https://osu.ppy.sh/community/forums/posts/{post_id}/edit')
-
         if response.status_code == 403:
             msg = f'Unable to retrieve bbcode for posts that are not yours; post_id: {post_id}'
             raise BotException(self.__logger, msg)
@@ -125,7 +126,7 @@ class SessionMgr():
 
         try: bbcode = root.find('textarea').renderContents().decode('utf-8')
         except Exception as e:
-            msg = f'Unable to parse bbcode for post id: {post_id}; {e}'
+            msg = f'Unable to parse bbcode for post id: {post_id}; {e}\nRoot: {root}'
             raise BotException(self.__logger, msg) from e
 
         return bbcode
@@ -133,14 +134,14 @@ class SessionMgr():
 
     def edit_post(self, post_id: Union[int, str], new_content: str, append: bool = False):
         if not self.__logged_in:
-            self.login()
+            raise BotException(self.__logger, 'Must be logged in first')
 
         try:
             response = self.fetch_web_data('https://osu.ppy.sh')
             data = {
                 'body'    : new_content if not append else (self.get_post_bbcode(post_id) + new_content),
                 '_method' : 'PATCH',
-                '_token'  : response.cookies['XSRF-TOKEN']
+                #'_token'  : response.cookies['XSRF-TOKEN']
             }
 
             response = self.__session.post(f'https://osu.ppy.sh/community/forums/posts/{post_id}', data=data)
@@ -214,6 +215,22 @@ class SessionMgr():
         }
 
         return data
+
+
+    def get_thread(self, thread_id: Union[int, str], page: Optional[requests.Response] = None, post_num: int = 0):
+        thread_url = f'https://osu.ppy.sh/community/forums/topics/{thread_id}/?n={post_num}'
+        if not page:
+            page = self.fetch_web_data(thread_url)
+
+        # Error checking
+        msg = None
+        if page.text.find("Page Missing") != -1:                msg = f'Topic with url {thread_url} does not exist!'
+        if page.text.find("You shouldn&#039;t be here.") != -1: msg = f'Cannot access topic with url {thread_url}!'
+
+        if msg:
+            raise BotException(self.__logger, msg)
+
+        return Topic(BeautifulSoup(page.text, "lxml"))
 
 
     def get_post(self, post_id: Union[int, str], page: Optional[requests.Response] = None) -> Post:

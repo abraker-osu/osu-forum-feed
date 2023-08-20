@@ -13,6 +13,7 @@ from _pytest.python import Function
 def pytest_configure(config: Config):
     logging.getLogger('Tester').debug(f'{"-"*20} init {"-"*20}')
 
+    config.addinivalue_line('markers', 'login: requires user login info')
 
 
 @pytest.hookimpl

@@ -8,7 +8,7 @@ class Logger(logging.Logger):
     def __init__(self, log_path: str, is_dbg: str, name: str, level: int = logging.NOTSET):
         logging.Logger.__init__(self, name, level=logging.DEBUG)
 
-        formatter = logging.Formatter('%(levelname)s  %(asctime)s   [ %(name)s ] %(message)s')
+        formatter = logging.Formatter(u'%(levelname)s  %(asctime)s   [ %(name)s ] %(message)s')
 
         self.sh = logging.StreamHandler()
         self.sh.setFormatter(formatter)
@@ -23,7 +23,7 @@ class Logger(logging.Logger):
         #   if over 1MB, then rename current logging file to '{start_date}_{end_date}_{logger_name}.log'
         #   cut-paste into logging folder named '{logger_name}'
 
-        self.fh = logging.FileHandler(f'{log_path}/{name}.log')
+        self.fh = logging.FileHandler(f'{log_path}/{name}.log', encoding='utf-8')
         self.fh.setFormatter(formatter)
         self.fh.setLevel(logging.INFO)
         self.addHandler(self.fh)
