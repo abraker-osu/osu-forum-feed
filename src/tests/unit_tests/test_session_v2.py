@@ -5,10 +5,11 @@ import time
 
 import yaml
 
-from core.SessionMgr import SessionMgr
+from core.SessionMgrV2 import SessionMgrV2
 
 
-class TestSession:
+
+class TestSessionV2:
 
     def setup_class(cls):
         cls.logger = logging.getLogger('TestSession')
@@ -24,8 +25,8 @@ class TestSession:
         ...
 
 
-    def test_web_read(self):
-        session_mgr = SessionMgr()
+    def test_sessionV2_web_read(self):
+        session_mgr = SessionMgrV2()
 
         start = time.time()
         session_mgr.fetch_web_data('https://osu.ppy.sh/community/forums/topics/145250/?n=0')
@@ -36,7 +37,13 @@ class TestSession:
 
 
     @pytest.mark.login
-    def test_login(self):
-        session_mgr = SessionMgr()
-        session_mgr.login(self.config['Core']['web_username'], self.config['Core']['web_password'])
+    def test_sessionV2_login(self):
+        session_mgr = SessionMgrV2()
+        session_mgr.login(
+            self.config['Core']['api_client_id'],
+            self.config['Core']['api_client_secret'],
+            self.config['Core']['mailtrap_api_token'],
+            self.config['Core']['mailtrap_addr_src'],
+            self.config['Core']['email_addr_dst']
+        )
         session_mgr.__del__()

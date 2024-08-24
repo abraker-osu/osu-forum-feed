@@ -10,11 +10,11 @@ from tinydb.table import Document
 from threading import Thread
 
 from core.BotCore import BotCore
-from core.SessionMgr import SessionMgr
+from core.SessionMgrV2 import SessionMgrV2
 from core import BotException
 
 
-class ForumMonitor(BotCore, SessionMgr):
+class ForumMonitor(BotCore, SessionMgrV2):
 
     DB_ID_FORUM_MONITOR = 0
 
@@ -25,7 +25,7 @@ class ForumMonitor(BotCore, SessionMgr):
         self.__logger.info('ForumMonitor initializing...')
 
         BotCore.__init__(self, config)
-        SessionMgr.__init__(self)
+        SessionMgrV2.__init__(self)
 
         if login:
             self.login(self.get_cfg('Core', 'web_username'), self.get_cfg('Core', 'web_password'))

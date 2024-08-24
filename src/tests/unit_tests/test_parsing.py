@@ -5,7 +5,7 @@ import time
 
 import yaml
 
-from core.SessionMgr import SessionMgr
+from core.SessionMgrV2 import SessionMgrV2
 
 
 class TestParsing:
@@ -15,7 +15,7 @@ class TestParsing:
         cls.logger.setLevel(logging.DEBUG)
 
         cls.logger.info('Initializing Session Manager...')
-        cls.session_mgr = SessionMgr()
+        cls.session_mgr = SessionMgrV2()
 
         with open('config.yaml', 'r') as f:
             cls.config = yaml.safe_load(f)
@@ -24,9 +24,7 @@ class TestParsing:
 
     @classmethod
     def teardown_class(cls):
-        cls.logger.info('Closing Session Manager...')
-        cls.session_mgr.__del__()
-        time.sleep(1)
+        ...
 
 
     def test_topic_parsing(self):
@@ -177,7 +175,13 @@ class TestParsing:
 
     @pytest.mark.login
     def test_edit_post_overwrite(self):
-        self.session_mgr.login(self.config['Core']['web_username'], self.config['Core']['web_password'])
+        self.session_mgr.login(
+            self.config['Core']['api_client_id'],
+            self.config['Core']['api_client_secret'],
+            self.config['Core']['mailtrap_api_token'],
+            self.config['Core']['mailtrap_addr_src'],
+            self.config['Core']['email_addr_dst']
+        )
 
         for i in range(5):
             self.logger.info(f'\tRun {i + 1} of 5...')
@@ -220,7 +224,14 @@ class TestParsing:
     @pytest.mark.login
     def test_edit_post_append(self):
         self.logger.info('\tSetting up initial condition...')
-        self.session_mgr.login(self.config['Core']['web_username'], self.config['Core']['web_password'])
+        self.session_mgr.login(
+            self.config['Core']['api_client_id'],
+            self.config['Core']['api_client_secret'],
+            self.config['Core']['mailtrap_api_token'],
+            self.config['Core']['mailtrap_addr_src'],
+            self.config['Core']['email_addr_dst']
+        )
+
         self.session_mgr.edit_post(6630155, '0000000', append=False)
 
         post_contents = self.session_mgr.get_post(6630155).contents_text

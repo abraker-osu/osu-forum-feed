@@ -13,8 +13,6 @@ from core.BotException import BotException
 from core.console_framework import Cmd
 
 from core.parser import Topic, Post
-from core.SessionMgr import SessionMgr
-
 from bots.ThreadNecroBotCore.ThreadNecroBotCore import ThreadNecroBotCore, DB_ENUM
 
 
