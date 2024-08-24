@@ -539,9 +539,10 @@ class ThreadNecroBot(BotBase, ThreadNecroBotCore):
         })
         def cmd_get_user_rank(self, user_id):
             rank = self.obj.get_user_rank(user_id)
-            if not rank: return Cmd.err('user not found')
+            if not rank:
+                return Cmd.err('user not found')
 
-            return Cmd.err(f'User is ranked {rank}')
+            return Cmd.ok(f'User is ranked {rank}')
 
 
         @Cmd.help(
