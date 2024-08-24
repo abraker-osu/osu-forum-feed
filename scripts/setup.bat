@@ -1,9 +1,12 @@
 @echo off
 
 if "%VIRTUAL_ENV%" == "" (
-    py -m venv venv
+    python -m venv venv
+    if %errorlevel% neq 0 exit /b %errorlevel%
+
     venv\\Scripts\\activate.bat
+    if %errorlevel% neq 0 exit /b %errorlevel%
 )
 
-py -m pip install --upgrade pip
-pip install -r requirements.txt
+python -m pip install --upgrade pip
+python -m pip install -r requirements.txt

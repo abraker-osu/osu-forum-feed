@@ -1,8 +1,12 @@
 @echo off
 
 if "%VIRTUAL_ENV%" == "" (
-    py -m venv venv
+    python -m venv venv
+    if %errorlevel% neq 0 exit /b %errorlevel%
+
     venv\\Scripts\\activate.bat
+    if %errorlevel% neq 0 exit /b %errorlevel%
+
 )
 
-py src\\run.py
+python src\\run.py
