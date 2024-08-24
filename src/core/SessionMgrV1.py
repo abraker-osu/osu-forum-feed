@@ -4,20 +4,26 @@ import logging
 import time
 import json
 
-from requests import Session
-
+import requests
+import ossapi
 from bs4 import BeautifulSoup
+
 
 from core.BotException import BotException
 from .parser import Topic, Post
 
 
+_USE_NEW_LOGIN = True
 
-class SessionMgr():
+
+
+
+class SessionMgrV1():
 
     def __init__(self):
         self.__logger  = logging.getLogger(__class__.__name__)
-        self.__session = Session()
+        self.__session = requests.Session()
+        self.__osu_apiv2 = None
 
         self.__logged_in = False
         self.__last_status_code = None
@@ -28,68 +34,83 @@ class SessionMgr():
         self.__logged_in = False
 
 
-    def login(self, username: str, password: str):
-        if self.__logged_in:
-            return
+    if _USE_NEW_LOGIN:
 
-        # While being told there are too many login requests, attempt to log in
-        while True:
-            # For some reason web now needs a token for login
-            response = self.fetch_web_data('https://osu.ppy.sh')
-            self.__validate_response(response)
+        def login(self, client_id: int, client_secret: str):
+            self.__osu_apiv2 = ossapi.Ossapi(client_id, client_secret, redirect_uri='http://localhost', grant='authorization', scopes=[ ossapi.Scope.FORUM_WRITE ])
+            self.__logged_in = True
 
-            root = BeautifulSoup(response.text, 'lxml')
-            token = root.find('input', {'name' : '_token'})['value']
+    else:
 
-            login_data = { '_token' : token, 'username': username, 'password' : password }
-            headers = {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:76.0) Gecko/20100101 Firefox/76.0',
-                'Referer' : 'https://osu.ppy.sh/home'
-            }
+        def login(self, username: str, password: str):
+            """
+            Legacy method of logging in via osu!web user credentials
+            """
+            if self.__logged_in:
+                return
 
-            try: response = self.__session.post('https://osu.ppy.sh/session', data=login_data, headers=headers)
-            except Exception:
-                raise BotException(self.__logger, 'Unable to log in')
+            # While being told there are too many login requests, attempt to log in
+            while True:
+                # For some reason web now needs a token for login
+                response = self.fetch_web_data('https://osu.ppy.sh')
+                self.__validate_response(response)
 
-            self.__validate_response(response)
+                root = BeautifulSoup(response.text, 'lxml')
+                token = root.find('input', {'name' : '_token'})['value']
 
-            if response.status_code != 200:
-                if response.status_code == 429:
-                    self.__logger.warning('Too many login requests; Taking a 5 min nap . . . ')
-                    time.sleep(5*60)  # Too many requests; Take 5 min nap
-                    continue
-                if response.status_code == 403:
-                    raise BotException(self.__logger, 'Invalid login. Cannot continue!')
-                if response.status_code == 422:
-                    raise BotException(self.__logger, 'Invalid login. Fill in `web_username` and `web_password` in config.py')
-                else:
-                    raise BotException(self.__logger, f'Unable to log in; Status code: {response.status_code}')
+                # session_cookie = response.headers['set-cookie'].split(';')[0]
 
-            break
+                login_data = { '_token' : token, 'username': username, 'password' : password }
+                headers = {
+                    'User-Agent' : 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
+                    'Referer'    : 'https://osu.ppy.sh/home',
+                    'accept': 'application/json'
+                    # 'Cookie'     : session_cookie
+                }
 
-        # Validate log in
-        response = self.fetch_web_data('https://osu.ppy.sh')
-        if not 'XSRF-TOKEN' in response.cookies:
-            raise BotException(self.__logger, f'Unable to log in; Cookies indicate login failed!')
+                try: response = self.__session.post('https://osu.ppy.sh/session', data=login_data, headers=headers)
+                except Exception:
+                    raise BotException(self.__logger, 'Unable to log in')
 
-        self.__check_account_verification(response)
-        self.__logged_in = True
+                self.__validate_response(response)
 
-        return
+                if response.status_code != 200:
+                    if response.status_code == 429:
+                        self.__logger.warning('Too many login requests; Taking a 5 min nap . . . ')
+                        time.sleep(5*60)  # Too many requests; Take 5 min nap
+                        continue
+                    if response.status_code == 403:
+                        raise BotException(self.__logger, 'Invalid login. Cannot continue!')
+                    if response.status_code == 422:
+                        raise BotException(self.__logger, 'Invalid login. Fill in `web_username` and `web_password` in config.yaml')
+                    else:
+                        raise BotException(self.__logger, f'Unable to log in; Status code: {response.status_code}')
 
-
-    def __check_account_verification(self, response: requests.Response):
-        check = False
-        while True:
-            if response.text.find('Account Verification') == -1:
                 break
 
-            if not check:
-                self.__logger.warning('Need response to verification email before continuing')
-                check = True
-
+            # Validate log in
             response = self.fetch_web_data('https://osu.ppy.sh')
-            time.sleep(5)  # Check every minute until responded to email
+            if not 'XSRF-TOKEN' in response.cookies:
+                raise BotException(self.__logger, f'Unable to log in; Cookies indicate login failed!')
+
+            self.__check_account_verification(response)
+            self.__logged_in = True
+
+            return
+
+
+        def __check_account_verification(self, response: requests.Response):
+            check = False
+            while True:
+                if response.text.find('Account Verification') == -1:
+                    break
+
+                if not check:
+                    self.__logger.warning('Need response to verification email before continuing')
+                    check = True
+
+                response = self.fetch_web_data('https://osu.ppy.sh')
+                time.sleep(5)  # Check every minute until responded to email
 
 
     def fetch_web_data(self, url: str) -> requests.Response:
@@ -113,23 +134,30 @@ class SessionMgr():
         return self.__last_status_code
 
 
-    def get_post_bbcode(self, post_id: Union[int, str]):
-        if not self.__logged_in:
-            raise BotException(self.__logger, 'Must be logged in first')
+    if _USE_NEW_LOGIN:
 
-        response = self.fetch_web_data(f'https://osu.ppy.sh/community/forums/posts/{post_id}/edit')
-        if response.status_code == 403:
-            msg = f'Unable to retrieve bbcode for posts that are not yours; post_id: {post_id}'
-            raise BotException(self.__logger, msg)
+        def get_post_bbcode(self, post_id: Union[int, str]):
+            ...
 
-        root = BeautifulSoup(response.text, "lxml")
+    else:
 
-        try: bbcode = root.find('textarea').renderContents().decode('utf-8')
-        except Exception as e:
-            msg = f'Unable to parse bbcode for post id: {post_id}; {e}\nRoot: {root}'
-            raise BotException(self.__logger, msg) from e
+        def get_post_bbcode(self, post_id: Union[int, str]):
+            if not self.__logged_in:
+                raise BotException(self.__logger, 'Must be logged in first')
 
-        return bbcode
+            response = self.fetch_web_data(f'https://osu.ppy.sh/community/forums/posts/{post_id}/edit')
+            if response.status_code == 403:
+                msg = f'Unable to retrieve bbcode for posts that are not yours; post_id: {post_id}'
+                raise BotException(self.__logger, msg)
+
+            root = BeautifulSoup(response.text, "lxml")
+
+            try: bbcode = root.find('textarea').renderContents().decode('utf-8')
+            except Exception as e:
+                msg = f'Unable to parse bbcode for post id: {post_id}; {e}\nRoot: {root}'
+                raise BotException(self.__logger, msg) from e
+
+            return bbcode
 
 
     def edit_post(self, post_id: Union[int, str], new_content: str, append: bool = False):
