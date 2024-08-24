@@ -30,18 +30,18 @@ class TestParsing:
     def test_topic_parsing(self):
         self.logger.info('Getting topic...')
         start = time.time()
-        topic = self.session_mgr.get_thread(145250)
+        topic = self.session_mgr.get_thread(76484)
         self.logger.info(f'Got topic in {time.time() - start}s')
         time.sleep(1)
 
         expected_values = {
             'subforum_id'      : '52',
             'subforum_name'    : 'Off-Topic',
-            'topic_date'       : '2013-07-25 19:19:50+00:00',
-            'topic_name'       : 'ITT 2: We post shit that is neither funny nor interesting',
-            'topic_url'        : 'https://osu.ppy.sh/community/forums/topics/145250',
-            'topic_id'         : '145250',
-            'topic_post_count' : 52148
+            'topic_date'       : '2012-03-04 14:24:59+00:00',
+            'topic_name'       : 'ITT: we post things that are neither funny nor interesting',
+            'topic_url'        : 'https://osu.ppy.sh/community/forums/topics/76484',
+            'topic_id'         : '76484',
+            'topic_post_count' : 14966
         }
 
         def read_subforum_id_test():      assert str(topic.subforum_id)   == expected_values['subforum_id']
@@ -103,11 +103,11 @@ class TestParsing:
             'post_num'  : '52030'
         }
 
-        def read_post_url_test():  post_url = post.url;            assert str(post_url)  == expected_values['post_url']
-        def read_post_id_test():   post_id = post.id;              assert str(post_id)   == expected_values['post_id']
+        def read_post_url_test():  post_url  = post.url;           assert str(post_url)  == expected_values['post_url']
+        def read_post_id_test():   post_id   = post.id;            assert str(post_id)   == expected_values['post_id']
         def read_post_date_test(): post_date = post.date;          assert str(post_date) == expected_values['post_date']
         def read_post_text_test(): post_text = post.contents_text; assert str(post_text) == expected_values['post_text']
-        def read_post_number():    post_num = post.post_num;       assert str(post_num)  == expected_values['post_num']
+        def read_post_number():    post_num  = post.post_num;      assert str(post_num)  == expected_values['post_num']
 
         self.logger.info('\t\tStarting read_post_url_test...')
         start = time.time()
