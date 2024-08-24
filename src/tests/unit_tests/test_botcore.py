@@ -74,10 +74,10 @@ class TestBotCore:
     @staticmethod
     def __get_post() -> Post:
         logger = logging.Logger(TestBotCore.__name__)
-        with open('src/unit_tests/forum_test_page.htm', 'rb') as test_forum_page:
+        with open('src/tests/unit_tests/forum_test_page.htm', 'rb') as test_forum_page:
             content = test_forum_page.read()
 
-        root = BeautifulSoup(content, "lxml")
+        root  = BeautifulSoup(content, "lxml")
         topic = Topic(root, logger)
 
         return topic.first_post

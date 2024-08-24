@@ -28,7 +28,7 @@ class ForumMonitorTest(ForumMonitor):
 
 class TestForumMonitor:
     """
-    NOTE: The forum monitor testing makes use of "src/unit_tests/forum_test_page.htm" for requested data
+    NOTE: The forum monitor testing makes use of "src/tests/unit_tests/forum_test_page.htm" for requested data
     instead of actually fetching the data from the live site. This speeds up the testing, but also
     allows the possibility of the forum test page not being up to date with the actual site.
     """
@@ -113,7 +113,7 @@ class TestForumMonitor:
     @staticmethod
     def __get_post(post_id: Union[int, str], page: Optional[requests.Response] = None) -> Post:
         logger = logging.Logger(TestForumMonitor.__name__)
-        with open('src/unit_tests/forum_test_page.htm', 'rb') as test_forum_page:
+        with open('src/tests/unit_tests/forum_test_page.htm', 'rb') as test_forum_page:
             content = test_forum_page.read()
 
         root = BeautifulSoup(content, "lxml")
@@ -168,7 +168,7 @@ class TestForumMonitor:
         page = Response()
         page.status_code = 200
 
-        with open('src/unit_tests/forum_test_page.htm', 'rb') as test_forum_page:
+        with open('src/tests/unit_tests/forum_test_page.htm', 'rb') as test_forum_page:
             page._content = test_forum_page.read()
 
         return thread_url, page
