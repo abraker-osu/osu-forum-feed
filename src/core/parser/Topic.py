@@ -11,9 +11,10 @@ from .parser_error import ParserError
 
 class Topic():
 
-    def __init__(self, root: BeautifulSoup, logger: logging.Logger):
-        self.__root   = root
-        self.__logger = logger
+    __logger = logging.getLogger(__qualname__)
+
+    def __init__(self, root: BeautifulSoup):
+        self.__root = root
 
 
     # Overload with the Post object to ensure getTopic works for either objects
@@ -29,7 +30,7 @@ class Topic():
             subforum_url = subforum_path_root.find_all(class_='header-nav-v4__link')[-1].get('href')
             return subforum_url[subforum_url.rfind('/') + 1:]
         except Exception as e:
-            raise ParserError(f'Unable to parse topic subforum id; {self.url}') from e
+            raise ParserError(f'Unable to parse topic subforum id; {self.url}: {e}') from e
 
 
     @cached_property
@@ -38,21 +39,21 @@ class Topic():
             subforum_path_root = self.__root.find_all(class_='header-v4__row header-v4__row--bar')[0]
             return subforum_path_root.find_all(class_='header-nav-v4__item')[-1].text.strip()
         except Exception as e:
-            raise ParserError(f'Unable to parse topic subforum name; {self.url}') from e
+            raise ParserError(f'Unable to parse topic subforum name; {self.url}: {e}') from e
 
 
     @cached_property
     def date(self) -> datetime.datetime:
         try: return self.first_post.date
         except Exception as e:
-            raise ParserError(f'Unable to parse topic date; {self.url}') from e
+            raise ParserError(f'Unable to parse topic date; {self.url}: {e}') from e
 
 
     @cached_property
     def creator(self) -> str:
         try: return self.first_post.creator
         except Exception as e:
-            raise ParserError(f'Unable to parse topic creator; {self.url}') from e
+            raise ParserError(f'Unable to parse topic creator; {self.url}: {e}') from e
 
 
     # \FIXME: Apperently some threads can have no title like this one: https://osu.ppy.sh/forum/t/751805
@@ -60,14 +61,14 @@ class Topic():
     def name(self) -> str:
         try: return self.__root.find_all(class_='forum-topic-title__title forum-topic-title__title--display')[0].text.strip()
         except Exception as e:
-            raise ParserError(f'Unable to parse topic name; {self.url}') from e
+            raise ParserError(f'Unable to parse topic name; {self.url}: {e}') from e
 
 
     @cached_property
     def url(self) -> str:
         try: return self.__root.find_all(class_='forum-topic-floating-header__title-link')[0]['href'].strip()
         except Exception as e:
-            raise ParserError(f'Unable to parse topic url; {self.url}') from e
+            raise ParserError(f'Unable to parse topic url; {self.url}: {e}') from e
 
 
     @cached_property
@@ -110,7 +111,7 @@ class Topic():
     def post_roots(self) -> BeautifulSoup:
         try: return self.__root.find_all(class_='js-forum-post')
         except Exception as e:
-            raise ParserError(f'Unable to parse topic posts; {self.url}')
+            raise ParserError(f'Unable to parse topic posts; {self.url}: {e}') from e
 
 
     @cached_property
@@ -118,7 +119,7 @@ class Topic():
         if len(self.post_roots) == 0:
             raise ParserError(f'No posts found in thread; {self.url}')
 
-        return Post(self, self.post_roots[0], self.__logger)
+        return Post(self, self.post_roots[0])
 
 
     # \TODO: Maybe this needs to be more efficient; Do only the ones that are needed to be done
@@ -129,6 +130,6 @@ class Topic():
         posts = [ self.first_post ]
         if len(posts) < min(int(self.post_count), 20):
             for post in self.post_roots[1:]:
-                posts.append(Post(self, post, self.__logger))
+                posts.append(Post(self, post))
 
         return posts

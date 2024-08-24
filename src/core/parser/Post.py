@@ -18,10 +18,11 @@ if TYPE_CHECKING:
 
 class Post():
 
-    def __init__(self, topic: "Topic", root: BeautifulSoup, logger: logging.Logger):
+    __logger = logging.getLogger(__qualname__)
+
+    def __init__(self, topic: "Topic", root: BeautifulSoup):
         self.__topic  = topic
         self.__root   = root
-        self.__logger = logger
 
 
     # Overload with the Topic object to ensure getTopic works for either objects
@@ -156,7 +157,7 @@ class Post():
         i = len(post_roots) - 1
 
         while True:
-            post_id = Post(self.__topic, post_roots[i], self.__logger).id
+            post_id = Post(self.__topic, post_roots[i]).id
             if post_id == self.id: break
             if i <= 0: break
             i -= 1
@@ -164,7 +165,7 @@ class Post():
         if i == 0:
             return None
 
-        return Post(self.__topic, post_roots[i - 1], self.__logger)
+        return Post(self.__topic, post_roots[i - 1])
 
 
     @cached_property

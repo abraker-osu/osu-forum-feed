@@ -44,13 +44,13 @@ class TestParsing:
             'topic_post_count' : 52148
         }
 
-        def read_subforum_id_test():      subforum_id = topic.getSubforumID();     self.assertEqual(str(subforum_id),      expected_values['subforum_id'])
-        def read_subforum_name_test():    subforum_name = topic.getSubforumName(); self.assertEqual(str(subforum_name),    expected_values['subforum_name'])
-        def read_topic_date_test():       topic_date = topic.getDate();            self.assertEqual(str(topic_date),       expected_values['topic_date'])
-        def read_topic_name_test():       topic_name = topic.getName();            self.assertEqual(str(topic_name),       expected_values['topic_name'])
-        def read_topic_url_test():        topic_url = topic.getUrl();              self.assertEqual(str(topic_url),        expected_values['topic_url'])
-        def read_topic_id_test():         topic_id = topic.getID();                self.assertEqual(str(topic_id),         expected_values['topic_id'])
-        def read_topic_post_count_test(): topic_post_count = topic.getPostCount(); self.assertGreaterEqual(int(topic_post_count), expected_values['topic_post_count'])
+        def read_subforum_id_test():      assert str(topic.subforum_id)   == expected_values['subforum_id']
+        def read_subforum_name_test():    assert str(topic.subforum_name) == expected_values['subforum_name']
+        def read_topic_date_test():       assert str(topic.date)          == expected_values['topic_date']
+        def read_topic_name_test():       assert str(topic.name)          == expected_values['topic_name']
+        def read_topic_url_test():        assert str(topic.url)           == expected_values['topic_url']
+        def read_topic_id_test():         assert str(topic.id)            == expected_values['topic_id']
+        def read_topic_post_count_test(): assert int(topic.post_count)    == expected_values['topic_post_count']
 
         self.logger.info('\t\tStarting read_subforum_id_test...')
         start = time.time()

@@ -117,7 +117,7 @@ class TestForumMonitor:
             content = test_forum_page.read()
 
         root = BeautifulSoup(content, "lxml")
-        topic = Topic(root, logger)
+        topic = Topic(root)
 
         return topic.first_post
 
