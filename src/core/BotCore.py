@@ -2,8 +2,6 @@ import os
 import importlib
 import logging
 
-import tinydb
-
 from core.BotException import BotException
 
 from .BotBase import BotBase
@@ -23,7 +21,8 @@ class BotCore():
         self.__config = config
         self.runtime_quit = False
 
-        self.__db = tinydb.TinyDB(self.get_cfg('Core', 'db_path'))
+        self.db_path = self.get_cfg('Core', 'db_path_dbg') if self.get_cfg('Core', 'is_dbg') else self.get_cfg('Core', 'db_path')
+        os.makedirs(self.db_path, exist_ok=True)
         self.check_db()
 
         self.__bots: dict[str, BotBase] = {}
@@ -32,11 +31,6 @@ class BotCore():
         except Exception as e:
             self.__logger.critical(str(e))
             raise e
-
-
-    def __del__(self):
-        self.__logger.info('Closing db...')
-        self.__db.close()
 
 
     def __init_bots(self):
@@ -85,10 +79,6 @@ class BotCore():
 
     def get_bot(self, name: str):
         return self.__bots[name]
-
-
-    def get_db_table(self, name: str) -> tinydb.TinyDB.table_class:
-        return self.__db.table(name)
 
 
     def get_cfg(self, src: str, key: str):

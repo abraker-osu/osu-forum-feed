@@ -12,7 +12,7 @@ if TYPE_CHECKING:
 class BotBase:
 
     def __init__(self, core: "ForumMonitor", cmd: "Cmd", name: str, enable: bool):
-        self.logger    = logging.getLogger('bots/' + name)
+        self.logger    = logging.getLogger(f'bots/{name}')
         self.__core    = core
         self.__enable  = enable
         self.__name    = name

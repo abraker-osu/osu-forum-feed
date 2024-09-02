@@ -1,57 +1,55 @@
-from typing import Union
-
 import math
 import logging
 import datetime
 
 import tinydb
-from tinydb import table, TinyDB
-
-
-class DB_ENUM():
-    DB_TYPE_MONTHLY  = 0
-    DB_TYPE_ALL_TIME = 1
-
-    MONTHLY_LOG     = 0
-    MONTHLY_USER    = 1
-    MONTHLY_SCORES  = 2
-    MONTHLY_WINNERS = 3
-
-    ALL_TIME_LOG     = 10
-    ALL_TIME_USER    = 11
-    ALL_TIME_SCORES  = 12
+from tinydb import table
 
 
 class ThreadNecroBotCore():
 
     logger = logging.getLogger('ThreadNecroBot')
 
-    log_timestamp = [
+    DB_TYPE_MONTHLY = 0
+    DB_TYPE_ALLTIME = 1
+
+    __LOG_TIMESTAMPS = [
         '          ADMIN          ',
         '          BONUS          ',
         '       MULTI POST        ',
         '      DELETED POST       '
     ]
 
-    ADMIN_TIMESTAMP = 0
-    BONUS_TIMESTAMP = 1
-    MULTI_TIMESTAMP = 2
-    DELET_TIMESTAMP = 3
+    __ID_TIMESTAMP_ADMIN = 0
+    __ID_TIMESTAMP_BONUS = 1
+    __ID_TIMESTAMP_MULTI = 2
+    __ID_TIMESTAMP_DELET = 3
 
-    MAX_LOG_ENTRIES       = 10
-    MAX_TOP_SCORE_ENTRIES = 10
+    LOG_TIMESTAMP_ADMIN = __LOG_TIMESTAMPS[__ID_TIMESTAMP_ADMIN]
+    LOG_TIMESTAMP_BONUS = __LOG_TIMESTAMPS[__ID_TIMESTAMP_BONUS]
+    LOG_TIMESTAMP_MULTI = __LOG_TIMESTAMPS[__ID_TIMESTAMP_MULTI]
+    LOG_TIMESTAMP_DELET = __LOG_TIMESTAMPS[__ID_TIMESTAMP_DELET]
 
-    def __init__(self, db_tables: "dict[int, TinyDB.table_class]"):
-        if DB_ENUM.MONTHLY_LOG     not in db_tables: raise KeyError('Monthly log table not found')
-        if DB_ENUM.MONTHLY_USER    not in db_tables: raise KeyError('Monthly user table not found')
-        if DB_ENUM.MONTHLY_SCORES  not in db_tables: raise KeyError('Monthly scores table not found')
-        if DB_ENUM.MONTHLY_WINNERS not in db_tables: raise KeyError('Monthly winners table not found')
+    __DB_FILE_LOGS          = 'ThreadNecroBot_DataLogs.json'
+    __DB_FILE_WINNERS       = 'ThreadNecroBot_DataWinners.json'
+    __DB_FILE_SCORES        = 'ThreadNecroBot_DataScores.json'
+    __DB_FILE_USERS         = 'ThreadNecroBot_DataUsers.json'
+    __DB_FILE_META          = 'ThreadNecroBot_DataMeta.json'
 
-        if DB_ENUM.ALL_TIME_LOG    not in db_tables: raise KeyError('All time log table not found')
-        if DB_ENUM.ALL_TIME_USER   not in db_tables: raise KeyError('All time user table not found')
-        if DB_ENUM.ALL_TIME_SCORES not in db_tables: raise KeyError('All time score table not found')
+    __TABLE_LOGS            = 'log_data'
+    __TABLE_LOGS_META       = 'log_data_meta'
+    __TABLE_SCORES_ALLTIME  = 'top_scores'
+    __TABLE_SCORES_MONTHLY  = 'top_scores_monthly'
+    __TABLE_WINNERS         = 'monthly_winners'
+    __TABLE_USERS           = 'userdata'
+    __TABLE_META_PREV_POST  = 'prevpost'
+    __TABLE_META_IDX        = 'idx'
 
-        self.db_tables: "dict[int, TinyDB.table_class]" = db_tables
+    __MAX_ENTRIES_LOGS      = 10
+    __MAX_ENTRIES_TOP_SCORE = 10
+
+    def __init__(self, db_path: str):
+        self.__db_path = db_path
         self.banned = []
 
         self._n = math.log(2000.0/60.0)/math.log(24)
@@ -60,155 +58,159 @@ class ThreadNecroBotCore():
         self.multi_post_pts_penalty = 100
 
 
-    def get_timestamp(self, log_timestamp: str):
-        if log_timestamp >= len(ThreadNecroBotCore.log_timestamp):
-            return None
+    # def get_timestamp(self, log_timestamp: str):
+    #     if log_timestamp >= len(ThreadNecroBotCore.log_timestamp):
+    #         return None
 
-        try: return ThreadNecroBotCore.log_timestamp[log_timestamp]
-        except:
-            return None
-
-
-    def is_multi_post(self, prev_post_info: dict, data: dict):
-        if not prev_post_info:
-            return False
-
-        try: multi_post = (str(prev_post_info['user_id']) == str(data['curr_user_id']))
-        except:
-            multi_post = False
-
-        return multi_post
+    #     try: return ThreadNecroBotCore.log_timestamp[log_timestamp]
+    #     except:
+    #         return None
 
 
-    def is_deleted_post(self, prev_post_info: dict, data: dict):
-        if not prev_post_info:
-            return False
-
-        special_event = (prev_post_info['time'] in ThreadNecroBotCore.log_timestamp)
-        if special_event:
-            return False
-
-        try: deleted_post = (str(prev_post_info['time']) != str(data['prev_post_time']))
-        except:
-            deleted_post = False
-
-        return deleted_post
-
-
-    def update_user_data(self, user_data: dict, db_type: int):
+    def update_user_data(self, user_data: dict):
         """
         Operations:
-        - Creates a user entry based on user id if it does not already exist. Starts at 0 pts if does not
+        - Creates a user entry based on user id if it does not already exist. Starts at 0 pts if does not exist
         - Add `user_data['added_score']` amount of points to the user entry
         - Updates user entry's username
         - Updates user entry's last processed post id
 
-        db Format:
-        {
-            user_id : { 'points' : '...', 'user_name' : '...', 'post_id' : '...' },
-            user_id : { 'points' : '...', 'user_name' : '...', 'post_id' : '...' },
-            ...
-        }
+        fmt `user_data`:
+            { 'added_score' : float, 'user_id' : int, 'user_name' : str, 'post_id' : int }
+
+        fmt DB:
+            "userdata" : {
+                [user_id:int] : { 'points_alltime' : float, 'points_monthly' : float, 'user_name' : str, 'post_id' : int },
+                [user_id:int] : { 'points_alltime' : float, 'points_monthly' : float, 'user_name' : str, 'post_id' : int },
+                ...
+            }
         """
-        user_data_table = \
-            self.db_tables[DB_ENUM.ALL_TIME_USER] if (db_type == DB_ENUM.DB_TYPE_ALL_TIME) else self.db_tables[DB_ENUM.MONTHLY_USER]
+        points_alltime = self.get_user_points(user_data['user_id'], self.DB_TYPE_ALLTIME)
+        points_alltime += float(user_data['added_score'])
+        points_alltime = f'{points_alltime:.3f}'
 
-        # Process
-        points = self.get_user_points(user_data['user_id'], db_type)
-        points += float(user_data['added_score'])
-        points = f'{points:.3f}'
+        points_monthly = self.get_user_points(user_data['user_id'], self.DB_TYPE_MONTHLY)
+        points_monthly += float(user_data['added_score'])
+        points_monthly = f'{points_monthly:.3f}'
 
-        # Update
-        user_data_table.upsert(table.Document(
-            {
-                'points'    : float(points),
-                'user_name' : user_data['user_name'],
-                'post_id'   : user_data['post_id']
+        with tinydb.TinyDB(f'{self.__db_path}/{self.__DB_FILE_USERS}') as db:
+            table_user = db.tables(self.__TABLE_USERS)
+            table_user.upsert(table.Document(
+                {
+                    'points_alltime' : float(points_alltime),
+                    'points_monthly' : float(points_monthly),
+                    'user_name'      : str(user_data['user_name']),
+                    'post_id'        : int(user_data['post_id'])
+                },
+                doc_id = int(user_data['user_id'])
+            ))
+
+
+    def update_log_data(self, log_data: dict):
+        """
+        Operations:
+        1. Resolve `db_type` to table
+        2. Use index in log table meta to determine which entry in log table to update
+        3. Update log table entry and increment (or wrap) log table meta entry index
+
+        fmt `log_data`:
+            { time' : str, 'user_name' : str, 'user_id' : int, 'post_id' : int, 'added_score' : float, 'total_score' : float' }
+
+        fmt DB:
+            "log_data" : {
+                [idx:int] : { 'time' : str, 'user_name' : str, 'user_id' : int, 'post_id' : int, 'added_score' : float, 'score_alltime' : float, 'score_monthly' : float },
+                [idx:int] : { 'time' : str, 'user_name' : str, 'user_id' : int, 'post_id' : int, 'added_score' : float, 'score_alltime' : float, 'score_monthly' : float },
+                ...
             },
-            doc_id = int(user_data['user_id'])
-        ))
-
-
-    def update_log_data(self, log_data: dict, db_type: int):
+            "log_data_meta : {
+                [type:int] : { 'num' : int },
+            }
         """
-        'log_data' : [
-            { 'time' : '...', 'user_name' : '...', 'user_id' : '...', 'post_id' : '...', 'added_score' : '...', 'total_score' : '...', },
-            { 'time' : '...', 'user_name' : '...', 'user_id' : '...', 'post_id' : '...', 'added_score' : '...', 'total_score' : '...', },
-            { 'time' : '...', 'user_name' : '...', 'user_id' : '...', 'post_id' : '...', 'added_score' : '...', 'total_score' : '...', },
-            ...
-        ]
-        """
-        # Request
-        log_data_table = \
-            self.db_tables[DB_ENUM.ALL_TIME_LOG] if (db_type == DB_ENUM.DB_TYPE_ALL_TIME) else self.db_tables[DB_ENUM.MONTHLY_LOG]
+        score_alltime = self.get_user_points(log_data['user_id'], self.DB_TYPE_ALLTIME)
+        score_monthly = self.get_user_points(log_data['user_id'], self.DB_TYPE_MONTHLY)
 
-        log_list = self.get_log_list(db_type)
+        num = 0
 
-        # Process
-        if log_list:
-            # Log is a FIFO of 10 entries
-            if len(log_list) >= self.MAX_LOG_ENTRIES:
-                log_data_table.remove(doc_ids=[ log_list[0].doc_id ])
+        with tinydb.TinyDB(f'{self.__db_path}/{self.__DB_FILE_LOGS}') as db:
+            table_meta = db.table(self.__TABLE_LOGS_META)
 
-        log_data_table.insert(log_data)
+            entry = table_meta.get(doc_id=self.DB_TYPE_MONTHLY)
+            try:  num = entry['num']
+            except ( KeyError, TypeError ):
+                pass
 
-        if db_type == DB_ENUM.DB_TYPE_ALL_TIME:
-            self.logger.info(self.generate_log_line(log_data, log_list))
+            log_data.update({
+                'score_alltime' : score_alltime,
+                'score_monthly' : score_monthly
+            })
+
+            table_log = db.table(self.__TABLE_LOGS)
+            table_log.insert(log_data)
+
+            num = min(num + 1, self.__MAX_ENTRIES_LOGS)
+            table_meta.update(table.Document({ 'num' : num }, doc_id=self.DB_TYPE_MONTHLY))
+
+        log_list = self.get_log_list(self.DB_TYPE_ALLTIME)
+        self.logger.info(self.generate_log_line(log_data, log_list))
 
 
-    def update_top_score_data(self, new_score_data: dict, db_type: int):
+    def update_top_score_data(self, new_score_data: dict):
         """
         Operations:
         - Inserts a new added score entry
         - Removes lowest added score entry if reached max entries limit
 
-        db format:
-        {
-            { 'time' : '...', 'user_id' : '...', 'user_name' : '...', 'post_id' : '...', 'added_score' : '...' },
-            { 'time' : '...', 'user_id' : '...', 'user_name' : '...', 'post_id' : '...', 'added_score' : '...' },
-            ...
-        }
+        fmt `new_score_data`:
+            { 'time' : str, 'user_id' : str, 'user_name' : str, 'post_id' : int, 'added_score' : float }
+
+        fmt DB:
+            "top_scores", "top_scores_monthly" : {
+                [idx:int] : { 'time' : str, 'user_id' : int, 'user_name' : str, 'post_id' : int, 'added_score' : float },
+                [idx:int] : { 'time' : str, 'user_id' : int, 'user_name' : str, 'post_id' : int, 'added_score' : float },
+                ...
+            }
         """
-        # Request
-        score_data_table = \
-            self.db_tables[DB_ENUM.ALL_TIME_SCORES] if (db_type == DB_ENUM.DB_TYPE_ALL_TIME) else self.db_tables[DB_ENUM.MONTHLY_SCORES]
+        with tinydb.TinyDB(f'{self.__db_path}/{self.__DB_FILE_SCORES}') as db:
+            for table_name in [ self.__TABLE_SCORES_ALLTIME, self.__TABLE_SCORES_MONTHLY ]:
+                table_scores = db.table(table_name)
 
-        # Process
-        top_scores_entries = score_data_table.all()
+                if len(table) < self.__MAX_ENTRIES_TOP_SCORE:
+                    table_scores.insert(new_score_data)
+                    return
 
-        if len(score_data_table) < self.MAX_TOP_SCORE_ENTRIES:
-            score_data_table.insert(new_score_data)
-            return
+                entries = table_scores.all()
 
-        lowest_added_score_idx = min(range(len(top_scores_entries)), key=lambda i: float(top_scores_entries.__getitem__(i)['added_score']))
-        lowest_added_score_val = float(top_scores_entries[lowest_added_score_idx]['added_score'])
+                min_idx = min(range(len(entries)), key=lambda i: float(entries.__getitem__(i)['added_score']))
+                min_val = float(entries[min_idx]['added_score'])
 
-        is_old_score_greater = (float(new_score_data['added_score']) <= lowest_added_score_val)
-        if is_old_score_greater:
-            return
+                is_old_score_greater = (float(new_score_data['added_score']) <= min_val)
+                if is_old_score_greater:
+                    return
 
-        score_data_table.remove(doc_ids=[ top_scores_entries[lowest_added_score_idx].doc_id ])
-        score_data_table.insert(new_score_data)
+                table_scores.upsert(table.Document(new_score_data, doc_id=min_idx))
 
 
     def update_monthly_winners(self):
         """
-        'monthly_winners' : [
-            { 'time' : '...', 'user_id' : '...', 'points' : '...', 'user_name' : '...'},
-            { 'time' : '...', 'user_id' : '...', 'points' : '...', 'user_name' : '...'},
+        Operations:
+        1. Get top 10 scores and determine which entry is #1
+        2. Append entry to winners list
+        3. Update table
+
+        'monthly_winners' : {
+            [idx:int] : { 'time' : str, 'user_id' : int, 'points' : float, 'user_name' : str},
+            [idx:int] : { 'time' : str, 'user_id' : int, 'points' : float, 'user_name' : str},
             ...
-        ]
+        }
         """
-        # Request
-        score_data_table = self.db_tables[DB_ENUM.MONTHLY_WINNERS]
         monthly_winners_list: list[table.Document] = self.get_monthly_winners_list()
 
         # If the monthly winners list doesn't exist, that means we are doing this for the first time
         # Grab the All-time top 10 if that is so because monthly top 10 is incomplete
         if not monthly_winners_list:
-            top_10_monthly_list = self.get_top_10_list(DB_ENUM.DB_TYPE_ALL_TIME)
+            top_10_monthly_list = self.get_top_10_list(self.DB_TYPE_ALLTIME)
         else:
-            top_10_monthly_list = self.get_top_10_list(DB_ENUM.DB_TYPE_MONTHLY)
+            top_10_monthly_list = self.get_top_10_list(self.DB_TYPE_MONTHLY)
 
         # Process
         if not top_10_monthly_list:
@@ -217,120 +219,169 @@ class ThreadNecroBotCore():
         monthly_winner = top_10_monthly_list[0]
         monthly_winner['time'] = str(datetime.datetime.now().date())
 
-        score_data_table.insert(monthly_winner)
+        with tinydb.TinyDB(f'{self.__db_path}/{self.__DB_FILE_WINNERS}') as db:
+            table_winners = db.table(self.__TABLE_WINNERS)
+            table_winners.insert(monthly_winner)
 
 
-    def get_user_points(self, user_id: Union[str, int], db_type: int) -> float:
+    def update_metadata(self):
         """
-        {
-            user_id : { 'points' : '...', 'user_name' : '...', 'post_id' : '...' },
-            user_id : { 'points' : '...', 'user_name' : '...', 'post_id' : '...' },
+        "prevpost" : {
+            [id:int] : { 'prev_post_id' : int, 'prev_post_time' : str, 'prev_post_user_id' : int },
             ...
         }
         """
-        user_data_table = \
-            self.db_tables[DB_ENUM.ALL_TIME_USER] if (db_type == DB_ENUM.DB_TYPE_ALL_TIME) else self.db_tables[DB_ENUM.MONTHLY_USER]
-
-        entry = user_data_table.get(doc_id=int(user_id))
-        if isinstance(entry, type(None)):
-            return 0
-
-        if not 'points' in entry:
-            return 0
-
-        return entry['points']
 
 
-    def get_user_rank(self, user_id: Union[str, int], db_type: int) -> int:
+    def get_user_points(self, user_id: str | int, type_id: int) -> float:
         """
-        {
-            user_id : { 'points' : '...', 'user_name' : '...', 'post_id' : '...' },
-            user_id : { 'points' : '...', 'user_name' : '...', 'post_id' : '...' },
+        "userdata" : {
+            [user_id:int] : { 'points_alltime' : float, 'points_monthly' : float, 'user_name' : str, 'post_id' : int },
+            [user_id:int] : { 'points_alltime' : float, 'points_monthly' : float, 'user_name' : str, 'post_id' : int },
             ...
         }
         """
-        user_data_table = \
-            self.db_tables[DB_ENUM.ALL_TIME_USER] if (db_type == DB_ENUM.DB_TYPE_ALL_TIME) else self.db_tables[DB_ENUM.MONTHLY_USER]
+        key_id = 'points_alltime' if type_id == self.DB_TYPE_ALLTIME else 'points_monthly'
 
-        entries = user_data_table.all()
-        ranked_uids = list([
-            int(entry.doc_id) for entry in
-            sorted(
-                entries,
-                key = lambda entry: float(entry['points']),
-                reverse = True
-            )
-        ])
+        with tinydb.TinyDB(f'{self.__db_path}/{self.__DB_FILE_USERS}') as db:
+            table_users = db.table(self.__TABLE_USERS)
+            entry = table_users.get(doc_id=int(user_id))
 
-        try: rank = ranked_uids.index(int(user_id)) + 1
-        except ValueError:
-            rank = None
+            try: return entry[key_id]
+            except ( TypeError, KeyError ):
+                return 0
 
-        return rank
+
+    def get_user_rank(self, user_id: str | int, type_id: int) -> int:
+        """
+        "userdata" : {
+            [user_id:int] : { 'points_alltime' : float, 'points_monthly' : float, 'user_name' : str, 'post_id' : int },
+            [user_id:int] : { 'points_alltime' : float, 'points_monthly' : float, 'user_name' : str, 'post_id' : int },
+            ...
+        }
+        """
+        key_id = 'points_alltime' if type_id == self.DB_TYPE_ALLTIME else 'points_monthly'
+
+        with tinydb.TinyDB(f'{self.__db_path}/{self.__DB_FILE_USERS}') as db:
+            table_users = db.table(self.__TABLE_USERS)
+
+            entries = table_users.all()
+            ranked_uids = list([
+                int(entry.doc_id) for entry in
+                sorted(
+                    entries,
+                    key = lambda entry: float(entry[key_id]),
+                    reverse = True
+                )
+            ])
+
+            try: rank = ranked_uids.index(int(user_id)) + 1
+            except ValueError:
+                return None
+
+            return rank
 
 
     def get_log_list(self, db_type: int) -> "list[table.Document]":
         """
-        'log_data' : [
-            { 'time' : '...', 'user_name' : '...', 'user_id' : '...', 'post_id' : '...', 'added_score' : '...', 'total_score' : '...', },
-            { 'time' : '...', 'user_name' : '...', 'user_id' : '...', 'post_id' : '...', 'added_score' : '...', 'total_score' : '...', },
-            { 'time' : '...', 'user_name' : '...', 'user_id' : '...', 'post_id' : '...', 'added_score' : '...', 'total_score' : '...', },
-            ...
-        ]
+        fmt DB:
+            'log_data' : {
+                [idx:int] : { 'time' : str, 'user_name' : str, 'user_id' : int, 'post_id' : int, 'added_score' : float, 'score_alltime' : float, 'score_monthly' : float },
+                [idx:int] : { 'time' : str, 'user_name' : str, 'user_id' : int, 'post_id' : int, 'added_score' : float, 'score_alltime' : float, 'score_monthly' : float },
+                ...
+            },
+            "log_data_meta : {
+                [type:int] : { 'num' : int },
+            }
         """
-        log_data_table = \
-            self.db_tables[DB_ENUM.ALL_TIME_LOG] if (db_type == DB_ENUM.DB_TYPE_ALL_TIME) else self.db_tables[DB_ENUM.MONTHLY_LOG]
+        num = self.__MAX_ENTRIES_LOGS
 
-        return log_data_table.all()
+        with tinydb.TinyDB(f'{self.__db_path}/{self.__DB_FILE_LOGS}') as db:
+            if db_type == self.DB_TYPE_MONTHLY:
+                table_log = db.table(self.__TABLE_LOGS_META)
+                entry = table_log.get(doc_id=int(db_type))
+
+                try: num = entry['num']
+                except ( KeyError, TypeError ):
+                    pass
+
+            table_log = db.table(self.__TABLE_LOGS)
+            lst_len   = len(table_log)
+
+            return [
+                table_log.get(doc_id=i)
+                for i in range(lst_len - 1, lst_len - num - 1, -1)
+            ]
 
 
     def get_top_scores_list(self, db_type: int) -> "list[table.Document]":
         """
-        {
-            { 'time' : '...', 'user_id' : '...', 'user_name' : '...', 'post_id' : '...', 'added_score' : '...' },
-            { 'time' : '...', 'user_id' : '...', 'user_name' : '...', 'post_id' : '...', 'added_score' : '...' },
-            ...
-        }
+        fmt DB:
+            "top_scores" : {
+                [idx:int] : { 'time' : str, 'user_id' : int, 'user_name' : str, 'post_id' : int, 'added_score' : float },
+                [idx:int] : { 'time' : str, 'user_id' : int, 'user_name' : str, 'post_id' : int, 'added_score' : float },
+                ...
+            },
+            "top_scores_monthly" : {
+                [idx:int] : { 'time' : str, 'user_id' : int, 'user_name' : str, 'post_id' : int, 'added_score' : float },
+                [idx:int] : { 'time' : str, 'user_id' : int, 'user_name' : str, 'post_id' : int, 'added_score' : float },
+                ...
+            }
         """
-        scores_data_table = \
-            self.db_tables[DB_ENUM.ALL_TIME_SCORES] if (db_type == DB_ENUM.DB_TYPE_ALL_TIME) else self.db_tables[DB_ENUM.MONTHLY_SCORES]
+        with tinydb.TinyDB(f'{self.__db_path}/{self.__DB_FILE_SCORES}') as db:
+            table_scores = db.table(
+                self.__TABLE_SCORES_ALLTIME if db_type == self.DB_TYPE_ALLTIME else self.__TABLE_SCORES_MONTHLY
+            )
 
-        return sorted(
-            scores_data_table.all(),
-            key = lambda entry: float(entry['added_score']),
-            reverse = True
-        )
+            return sorted(
+                table_scores.all(),
+                key = lambda entry: float(entry['added_score']),
+                reverse = True
+            )
 
 
-    def get_top_10_list(self, db_type: int) -> "list[table.Document]":
-        user_data_table = \
-            self.db_tables[DB_ENUM.ALL_TIME_USER] if (db_type == DB_ENUM.DB_TYPE_ALL_TIME) else self.db_tables[DB_ENUM.MONTHLY_USER]
+    def get_top_10_list(self, type_id: int) -> "list[table.Document]":
+        """
+        fmt DB:
+            "userdata" : {
+                [user_id:int] : { 'points_alltime' : float, 'points_monthly' : float, 'user_name' : str, 'post_id' : int },
+                [user_id:int] : { 'points_alltime' : float, 'points_monthly' : float, 'user_name' : str, 'post_id' : int },
+                ...
+            }
+        """
+        key_id = 'points_alltime' if type_id == self.DB_TYPE_ALLTIME else 'points_monthly'
 
-        ranked_entries = sorted(
-            user_data_table.all(),
-            key = lambda entry: float(entry['points']),
-            reverse = True
-        )
+        with tinydb.TinyDB(f'{self.__db_path}/{self.__DB_FILE_USERS}') as db:
+            ranked_entries = sorted(
+                db.all(),
+                key = lambda entry: float(entry[key_id]),
+                reverse = True
+            )
 
-        return ranked_entries[:10]
+            return ranked_entries[:10]
 
 
     def get_monthly_winners_list(self) -> "list[table.Document]":
         """
-        'monthly_winners' : [
-            { 'time' : '...', 'user_id' : '...', 'points' : '...', 'user_name' : '...'},
-            { 'time' : '...', 'user_id' : '...', 'points' : '...', 'user_name' : '...'},
-            ...
-        ]
+        fmt DB:
+            'monthly_winners' : {
+                [idx:int] : { 'time' : str, 'user_id' : int, 'points' : float, 'user_name' : str},
+                [idx:int] : { 'time' : str, 'user_id' : int, 'points' : float, 'user_name' : str},
+                ...
+            }
         """
-        score_data_table = self.db_tables[DB_ENUM.MONTHLY_WINNERS]
-        return score_data_table.all()
+        with tinydb.TinyDB(f'{self.__db_path}/{self.__DB_FILE_WINNERS}') as db:
+            table_winners = db.table(self.__TABLE_WINNERS)
+            return table_winners.all()
 
 
     def reset_monthly_data(self):
-        self.db_tables[DB_ENUM.MONTHLY_USER].truncate()
-        self.db_tables[DB_ENUM.MONTHLY_LOG].truncate()
-        self.db_tables[DB_ENUM.MONTHLY_SCORES].truncate()
+        with tinydb.TinyDB(f'{self.__db_path}/{self.__DB_FILE_SCORES}') as db:
+            table_scores = db.table(self.__TABLE_SCORES_MONTHLY)
+            table_scores.truncate()
+
+        with tinydb.TinyDB(f'{self.__db_path}/{self.__DB_FILE_LOGS}') as db:
+            table_logs = db.table(self.__TABLE_LOGS)
 
 
     def generate_log_line(self, log_data: dict, log_list: "list[dict]"):
@@ -423,5 +474,12 @@ class ThreadNecroBotCore():
 
 
     def get_prev_post_info(self):
-        log_data_table = self.db_tables[DB_ENUM.ALL_TIME_LOG]
-        return log_data_table.all()[-1]
+        """
+        "prevpost" : {
+            [id:int] : { 'prev_post_id' : int, 'prev_post_time' : str, 'prev_post_user_id' : int },
+            ...
+        }
+        """
+        with tinydb.TinyDB(f'{self.__db_path}/{self.__DB_FILE_META}') as db:
+            table_meta = db.table(self.__TABLE_META_PREV_POST)
+            return table_meta.get(None, doc_id=0)

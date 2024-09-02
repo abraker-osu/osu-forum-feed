@@ -6,7 +6,9 @@ Core:
   log_path:      'logs'      # (str)
   bots_log_path: 'logs/bots' # (str)
   bots_path:     'src/bots'  # (str)
-  db_path:       'db.json'   # (str)
+
+  db_path:       'db'        # (str)
+  db_path_dbg:   'db_dbg'    # (str)
 
   # Forum monitor bootstrap settings
   # This is only used as starting values if it doesn't exist in DB

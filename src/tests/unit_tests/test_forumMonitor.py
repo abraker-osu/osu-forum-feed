@@ -50,8 +50,9 @@ class TestForumMonitor:
         self.forum_monitor = ForumMonitorTest(
             config  = {
                 'Core' : {
-                    'db_path'   : 'db-test.json',
-                    'bots_path' : 'src/bots',
+                    'is_dbg'      : True,
+                    'bots_path'   : 'src/bots',
+                    'db_path_dbg' : 'db/dbg',
 
                     'latest_post_id': 9059432,
 
@@ -79,13 +80,11 @@ class TestForumMonitor:
 
     def teardown_method(self, method):
         # This is to close the db and other resources used by the forum monitor
-        self.forum_monitor.__del__()
-
         self.logger.info('Deleting db...')
         time_start = time.time()
 
         while True:
-            try: os.remove('db-test.json')
+            try: os.remove(self.forum_monitor.db_path)
             except PermissionError:
                 time.sleep(0.1)
             except FileNotFoundError:
@@ -402,13 +401,12 @@ class TestForumMonitor:
 
         # Restart forum monitor
         # Initial conditions and overides
-        self.forum_monitor.__del__()
         self.forum_monitor = ForumMonitorTest(
             config  = {
                 'Core' : {
-                    'is_dbg'    : True,
-                    'db_path'   : 'db-test.json',
-                    'bots_path' : 'src/bots',
+                    'is_dbg'      : True,
+                    'db_path_dbg' : 'db/dbg',
+                    'bots_path'   : 'src/bots',
 
                     'latest_post_id': 9059432,
 

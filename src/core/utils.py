@@ -1,4 +1,3 @@
-
 import os
 
 class Utils:
@@ -24,3 +23,47 @@ class Utils:
                 print(len(data))
                 if len(data) >= lines or f.tell() == 0:
                     return ''.join(data[-lines:])
+
+
+    @staticmethod
+    def wrap(lst: list, idx: int, num: int | type[None] = None) -> list:
+        """
+        Produces a shifted list slice view. If the view has
+        more elements than the list or reaches the end of
+        the list, the view wraps around
+
+        lst : list
+            List to produce the view on
+
+        idx : int
+            The index in `lst` to have the view start on (become the new 0 idx)
+
+        num : int | None
+            Number of elements the view has.
+        """
+        lst_len = len(lst)
+        if isinstance(num, type(None)):
+            num = lst_len
+        return [ lst[(i + idx) % lst_len] for i in range(num) ]
+
+
+    @staticmethod
+    def wrap_idx(lst_len: int, idx: int, num: int | type[None] = None) -> list:
+        """
+        Produces a shifted list slice view by index. If the view has
+        more elements than the list or reaches the end of
+        the list, the index wraps around
+
+        lst_len : int
+            Size of the entire list
+
+        idx : int
+            The index in `lst` to have the view start on (become the new 0 idx)
+
+        num : int | None
+            Number of elements the view has.
+        """
+        if isinstance(num, type(None)):
+            num = lst_len
+
+        return [ (i + idx) % lst_len for i in range(num) ]

@@ -29,6 +29,9 @@ class SessionMgrBase():
     def edit_post(self, post_id: int | str, new_content: str, append: bool = False):
         raise NotImplementedError
 
+    def get_post_bbcode(self, post_id: int | str):
+        raise NotImplementedError
+
 
     def fetch_web_data(self, url: str) -> requests.Response:
         try:
@@ -49,10 +52,6 @@ class SessionMgrBase():
 
     def get_last_status_code(self) -> int:
         return self.__last_status_code
-
-
-    def get_post_bbcode(self, post_id: int | str):
-        raise NotImplementedError
 
 
     def get_subforum(self, subforum_id: int | str, page: Optional[BeautifulSoup] = None) -> dict:

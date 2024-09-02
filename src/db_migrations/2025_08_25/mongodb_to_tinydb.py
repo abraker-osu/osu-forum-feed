@@ -1,3 +1,8 @@
+"""
+Run mongodb
+
+> mongoexport --db local --collection system.indexes --out .\converted_json\local.system.indexes.json
+"""
 import os
 import sys
 import json
@@ -34,7 +39,7 @@ def migrate_botcore():
 
 
 def migrate_bot_threadnecrobot_logdata():
-    db_dst = 'src\\db_migrations\\2025_08_25\\samples_out\\ThreadNecroBot_LogData.json'
+    db_dst = 'src\\db_migrations\\2025_08_25\\samples_out\\ThreadNecroBot_DataLogs.json'
 
     db_src = 'src\\db_migrations\\2025_08_25\\samples_in\\forum-bot.ThreadNecroBot_LogData.json'
     with open(db_src) as f:
@@ -56,7 +61,7 @@ def migrate_bot_threadnecrobot_logdata():
 
 
 def migrate_bot_threadnecrobot_winners():
-    db_dst = 'src\\db_migrations\\2025_08_25\\samples_out\\ThreadNecroBot_MonthlyWinners.json'
+    db_dst = 'src\\db_migrations\\2025_08_25\\samples_out\\ThreadNecroBot_DataWinners.json'
 
     db_src = 'src\\db_migrations\\2025_08_25\\samples_in\\forum-bot.ThreadNecroBot_MonthlyWinners.json'
     with open(db_src) as f:
@@ -70,7 +75,7 @@ def migrate_bot_threadnecrobot_winners():
 
 
 def migrate_bot_threadnecrobot_topscores():
-    db_dst = 'src\\db_migrations\\2025_08_25\\samples_out\\ThreadNecroBot_TopScoresData.json'
+    db_dst = 'src\\db_migrations\\2025_08_25\\samples_out\\ThreadNecroBot_DataScores.json'
 
     db_src = 'src\\db_migrations\\2025_08_25\\samples_in\\forum-bot.ThreadNecroBot_TopScoresData.json'
     with open(db_src) as f:
@@ -92,7 +97,7 @@ def migrate_bot_threadnecrobot_topscores():
 
 
 def migrate_bot_threadnecrobot_users():
-    db_dst = 'src\\db_migrations\\2025_08_25\\samples_out\\ThreadNecroBot_UserData.json'
+    db_dst = 'src\\db_migrations\\2025_08_25\\samples_out\\ThreadNecroBot_DataUsers.json'
 
     db_src = 'src\\db_migrations\\2025_08_25\\samples_in\\forum-bot.ThreadNecroBot_UserData.json'
     with open(db_src) as f:
