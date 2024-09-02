@@ -107,9 +107,9 @@ class TestNecroBot:
 
         self.core = BotCoreTest({
             'Core' : {
-                'is_dbg'    : True,
-                'db_path'   : 'db-test.json',
-                'bots_path' : 'src/bots',
+                'is_dbg'      : True,
+                'db_path_dbg' : 'db/test',
+                'bots_path'   : 'src/bots',
 
                 'discord_admin_user_id' : 1234
             },
@@ -131,21 +131,27 @@ class TestNecroBot:
         Reset the database after each test to start each test clean
         """
         self.logger.info('Deleting db...')
-        self.core.__del__()
         time_start = time.time()
 
-        while True:
-            try: os.remove('db-test.json')
-            except PermissionError:
-                time.sleep(0.1)
-            except FileNotFoundError:
-                break
-            else:
-                break
+        db_files = [
+            self.bot._ThreadNecroBotCore__DB_FILE_LOGS,
+            self.bot._ThreadNecroBotCore__DB_FILE_WINNERS,
+            self.bot._ThreadNecroBotCore__DB_FILE_SCORES,
+            self.bot._ThreadNecroBotCore__DB_FILE_USERS,
+            self.bot._ThreadNecroBotCore__DB_FILE_META,
+        ]
 
-            if time.time() - time_start > 1:
-                self.logger.info(f'Failed to delete db - something is using it.')
-                break
+        for db_file in db_files:
+            while True:
+                try: os.remove(f'{self.core.db_path}/{db_file}')
+                except PermissionError:
+                    time.sleep(0.1)
+                except FileNotFoundError:
+                    break
+
+                if time.time() - time_start > 1:
+                    self.logger.info(f'Failed to delete db - something is using it.')
+                    break
 
 
     def test_update_user_data_all_time(self):
@@ -161,7 +167,7 @@ class TestNecroBot:
             'post_id'     : 123456,
             'user_name'   : 'test user 1'
         }
-        self.bot.update_user_data(data_1, self.bot.DB_TYPE_ALLTIME)
+        self.bot.update_user_data(data_1)
 
         # Check the user - should have 1111 pts, ranking #1 all time
         user_points = self.bot.get_user_points(data_1['user_id'], self.bot.DB_TYPE_ALLTIME)
@@ -171,7 +177,7 @@ class TestNecroBot:
         assert user_rank == 1, 'user_rank is wrong'
 
         # Add another post from same user
-        self.bot.update_user_data(data_1, self.bot.DB_TYPE_ALLTIME)
+        self.bot.update_user_data(data_1)
 
         # Check the user - should have 2222 pts, ranking #1 all time
         user_points = self.bot.get_user_points(data_1['user_id'], self.bot.DB_TYPE_ALLTIME)
@@ -187,7 +193,7 @@ class TestNecroBot:
             'post_id'     : 123456,
             'user_name'   : 'test user 2'
         }
-        self.bot.update_user_data(data_2, self.bot.DB_TYPE_ALLTIME)
+        self.bot.update_user_data(data_2)
 
         # Check the new user - should have 9999 pts, ranking #1 all time
         user_points = self.bot.get_user_points(data_2['user_id'], self.bot.DB_TYPE_ALLTIME)
@@ -217,7 +223,7 @@ class TestNecroBot:
             'post_id'     : 123456,
             'user_name'   : 'test user 1'
         }
-        self.bot.update_user_data(data_1, self.bot.DB_TYPE_MONTHLY)
+        self.bot.update_user_data(data_1)
 
         # Check the user - should have 1111 pts, ranking #1 monthly
         user_points = self.bot.get_user_points(data_1['user_id'], self.bot.DB_TYPE_MONTHLY)
@@ -227,7 +233,7 @@ class TestNecroBot:
         assert user_rank == 1, 'user_rank is wrong'
 
         # Add another post from same user
-        self.bot.update_user_data(data_1, self.bot.DB_TYPE_MONTHLY)
+        self.bot.update_user_data(data_1)
 
         # Check the user - should have 2222 pts, ranking #1 monthly
         user_points = self.bot.get_user_points(data_1['user_id'], self.bot.DB_TYPE_MONTHLY)
@@ -243,7 +249,7 @@ class TestNecroBot:
             'post_id'     : 123456,
             'user_name'   : 'test user 2'
         }
-        self.bot.update_user_data(data_2, self.bot.DB_TYPE_MONTHLY)
+        self.bot.update_user_data(data_2)
 
         # Check the new user - should have 9999 pts, ranking #1 monthly (overtaking other player)
         user_points = self.bot.get_user_points(data_2['user_id'], self.bot.DB_TYPE_MONTHLY)
@@ -264,13 +270,16 @@ class TestNecroBot:
         """
         Tests the data in all_time and monthly being written to the correct selection
         """
+        # Ranking:
+        #   uid    all time   monthly
+        #   1      1111       1111
         data_1 = {
             'added_score' : 1111,
             'user_id'     : 1,
             'post_id'     : 123456,
             'user_name'   : 'test user 1'
         }
-        self.bot.update_user_data(data_1, self.bot.DB_TYPE_MONTHLY)
+        self.bot.update_user_data(data_1)
 
         # Check user - should have 1111 pts, and rank #1 monthly
         user_points = self.bot.get_user_points(data_1['user_id'], self.bot.DB_TYPE_MONTHLY)
@@ -279,20 +288,7 @@ class TestNecroBot:
         user_rank = self.bot.get_user_rank(data_1['user_id'], self.bot.DB_TYPE_MONTHLY)
         assert user_rank == 1, 'user_rank is wrong'
 
-        # Make sure adding data to all-time doesn't affect monthly data
-        self.bot.update_user_data(data_1, self.bot.DB_TYPE_ALLTIME)
-
         # Check user - should have 1111 pts (got applied to all time), and rank #1 all time (got applied to all time)
-        user_points = self.bot.get_user_points(data_1['user_id'], self.bot.DB_TYPE_ALLTIME)
-        assert user_points == 1111, 'user_points is wrong'
-
-        user_rank = self.bot.get_user_rank(data_1['user_id'], self.bot.DB_TYPE_ALLTIME)
-        assert user_rank == 1, 'user_rank is wrong'
-
-        # Make sure adding data to monthly doesn't affect all time
-        self.bot.update_user_data(data_1, self.bot.DB_TYPE_MONTHLY)
-
-        # Check user - should still have 1111 pts (unaffected by monthly manipulation), and still rank #1 all time (unaffected by monthly manipulation)
         user_points = self.bot.get_user_points(data_1['user_id'], self.bot.DB_TYPE_ALLTIME)
         assert user_points == 1111, 'user_points is wrong'
 
@@ -303,14 +299,17 @@ class TestNecroBot:
         user_points = self.bot.get_user_points(2, self.bot.DB_TYPE_ALLTIME)
         assert user_points == 0, 'user_points is wrong'
 
-        # Now lets do another user
+        # Ranking:
+        #   uid    all time   monthly
+        #   1      1111       1111
+        #   2      9999       9999
         data_2 = {
             'added_score' : 9999,
             'user_id'     : 2,
             'post_id'     : 123456,
             'user_name'   : 'test user 2'
         }
-        self.bot.update_user_data(data_2, self.bot.DB_TYPE_ALLTIME)
+        self.bot.update_user_data(data_2)
 
         # Check new user - should have 9999 pts, and rank #1 all time (overtaking the other player)
         user_points = self.bot.get_user_points(data_2['user_id'], self.bot.DB_TYPE_ALLTIME)
@@ -321,14 +320,14 @@ class TestNecroBot:
 
         # Check old user - should have 2222 pts (unchanged), and rank #1 monthly (unchanged)
         user_points = self.bot.get_user_points(data_1['user_id'], self.bot.DB_TYPE_MONTHLY)
-        assert user_points == 2222, 'user_points is wrong'
+        assert user_points == 1111, 'user_points is wrong'
 
         user_rank = self.bot.get_user_rank(data_1['user_id'], self.bot.DB_TYPE_MONTHLY)
-        assert user_rank == 1, 'user_rank is wrong'
+        assert user_rank == 2, 'user_rank is wrong'
 
-        # Check user - user id 2 monthly should still be empty
-        user_points = self.bot.get_user_points(2, self.bot.DB_TYPE_MONTHLY)
-        assert user_points == 0, 'user_points is wrong'
+        # Check user - user id 2 monthly should be filled in
+        user_points = self.bot.get_user_points(data_2['user_id'], self.bot.DB_TYPE_MONTHLY)
+        assert user_points == 9999, 'user_points is wrong'
 
 
     def test_multi_post_detection(self):
@@ -336,46 +335,42 @@ class TestNecroBot:
         Tests multi post detection
         """
         prev_post = {
-            'total_score' : 0,
-            'user_id'     : 1,
-            'post_id'     : 123455,
-            'user_name'   : 'test user 1',
-            'time'        : datetime.datetime(2018, 7, 19, 22, 20, 25)
+            'prev_post_user_id' : 1,
+            'prev_post_id'      : 123455,
+            'prev_post_time'    : datetime.datetime(2018, 7, 19, 22, 20, 25)
         }
         curr_post = {
-            'curr_post_id'   : 123456,
-            'prev_post_id'   : 123455,
-            'curr_post_time' : datetime.datetime(2018, 7, 19, 22, 20, 25),
-            'prev_post_time' : datetime.datetime(2018, 7, 19, 22, 20, 24),
-            'curr_user_id'   : 2,
-            'prev_user_id'   : 1,
-            'curr_user_name' : 'test user 2',
-            'prev_user_name' : 'test user 1'
+            'curr_post_id'      : 123456,
+            'prev_post_id'      : 123455,
+            'curr_post_time'    : datetime.datetime(2018, 7, 19, 22, 20, 25),
+            'prev_post_time'    : datetime.datetime(2018, 7, 19, 22, 20, 24),
+            'curr_user_id'      : 2,
+            'prev_user_id'      : 1,
+            'curr_user_name'    : 'test user 2',
+            'prev_user_name'    : 'test user 1'
         }
 
-        # Is not a multipost since prev_post['user_id'] and curr_post['curr_user_id'] are different
+        # Is not a multipost since prev_post['prev_user_id'] and curr_post['curr_user_id'] are different
         is_multi_post = self.bot.is_multi_post(prev_post, curr_post)
         assert is_multi_post is False, 'is_multi_post is wrong'
 
         prev_post = {
-            'total_score' : 0,
-            'user_id'     : 1,
-            'post_id'     : 123456,
-            'user_name'   : 'test user 1',
-            'time'        : datetime.datetime(2018, 7, 19, 22, 20, 25),
+            'prev_post_user_id' : 1,
+            'prev_post_id'      : 123456,
+            'prev_post_time'    : datetime.datetime(2018, 7, 19, 22, 20, 25),
         }
         curr_post = {
-            'curr_post_id'   : 123456,
-            'prev_post_id'   : 123455,
-            'curr_post_time' : datetime.datetime(2018, 7, 19, 22, 20, 25),
-            'prev_post_time' : datetime.datetime(2018, 7, 19, 22, 20, 24),
-            'curr_user_id'   : 1,
-            'prev_user_id'   : 1,
-            'curr_user_name' : 'test user 1',
-            'prev_user_name' : 'test user 1'
+            'curr_post_id'      : 123456,
+            'prev_post_id'      : 123455,
+            'curr_post_time'    : datetime.datetime(2018, 7, 19, 22, 20, 25),
+            'prev_post_time'    : datetime.datetime(2018, 7, 19, 22, 20, 24),
+            'curr_user_id'      : 1,
+            'prev_user_id'      : 1,
+            'curr_user_name'    : 'test user 1',
+            'prev_user_name'    : 'test user 1'
         }
 
-        # Is a multipost since prev_post['user_id'] and curr_post['curr_user_id'] are same
+        # Is a multipost since prev_post['prev_user_id'] and curr_post['curr_user_id'] are same
         is_multi_post = self.bot.is_multi_post(prev_post, curr_post)
         assert is_multi_post is True, 'is_multi_post is wrong'
 
@@ -386,11 +381,9 @@ class TestNecroBot:
         """
         # Test multipost - should be -100 pts
         prev_post = {
-            'total_score' : 0,
-            'user_id'     : 1,
-            'post_id'     : 123456,
-            'user_name'   : 'test user 1',
-            'time'        : datetime.datetime(2018, 7, 19, 22, 20, 25),
+            'prev_post_user_id' : 1,
+            'prev_post_id'      : 123456,
+            'prev_post_time'    : datetime.datetime(2018, 7, 19, 22, 20, 25)
         }
         curr_post = {
             'curr_post_id'   : 123456,
@@ -407,11 +400,9 @@ class TestNecroBot:
 
         # Test 0 sec point difference post - should be 0 pts
         prev_post = {
-            'total_score' : 0,
-            'user_id'     : 1,
-            'post_id'     : 123456,
-            'user_name'   : 'test user 1',
-            'time'        : datetime.datetime(2018, 7, 19, 22, 20, 25),
+            'prev_post_user_id' : 1,
+            'prev_post_id'      : 123455,
+            'prev_post_time'    : datetime.datetime(2018, 7, 19, 22, 20, 25)
         }
         curr_post = {
             'curr_post_id'   : 123456,
@@ -428,11 +419,9 @@ class TestNecroBot:
 
         # Test 1 sec point difference - should be ~0 pts
         prev_post = {
-            'total_score' : 0,
-            'user_id'     : 1,
-            'post_id'     : 123456,
-            'user_name'   : 'test user 1',
-            'time'        : datetime.datetime(2018, 7, 19, 22, 20, 25),
+            'prev_post_user_id' : 1,
+            'prev_post_id'      : 123455,
+            'prev_post_time'    : datetime.datetime(2018, 7, 19, 22, 20, 24),
         }
         curr_post = {
             'curr_post_id'   : 123456,
@@ -445,15 +434,13 @@ class TestNecroBot:
             'prev_user_name' : 'test user 1'
         }
         added_score = self.bot.calculate_score_gained_curr_user(prev_post, curr_post)
-        assert added_score == pytest.approx(0, abs=0.1),'added_score is wrong'
+        assert added_score == pytest.approx(0, abs=0.1), 'added_score is wrong'
 
         # Test 1 day point difference - should be 2000 pts
         prev_post = {
-            'total_score' : 0,
-            'user_id'     : 1,
-            'post_id'     : 123456,
-            'user_name'   : 'test user 1',
-            'time'        : datetime.datetime(2018, 7, 19, 22, 20, 25),
+            'prev_post_user_id' : 1,
+            'prev_post_id'      : 123456,
+            'prev_post_time'    : datetime.datetime(2018, 7, 18, 22, 20, 25),
         }
         curr_post = {
             'curr_post_id'   : 123456,
@@ -473,13 +460,11 @@ class TestNecroBot:
         """
         Tests deleted post detection
         """
-        # Should be detect as a deleted post since prev_post['time'] and curr_post['prev_post_time'] don't match
+        # Should be detect as a deleted post since prev_post['prev_post_time'] and curr_post['prev_post_time'] don't match
         prev_post = {
-            'total_score' : 0,
-            'user_id'     : 1,
-            'post_id'     : 123456,
-            'user_name'   : 'test user 1',
-            'time'        : datetime.datetime(2018, 7, 19, 22, 20, 24),
+            'prev_post_user_id' : 1,
+            'prev_post_id'      : 123456,
+            'prev_post_time'    : datetime.datetime(2018, 7, 19, 22, 20, 24),
         }
         curr_post = {
             'curr_post_id'   : 123456,
@@ -496,11 +481,9 @@ class TestNecroBot:
 
         # Should not be detect as a deleted post since prev_post['time'] and curr_post['prev_post_time'] do match
         prev_post = {
-            'total_score' : 0,
-            'user_id'     : 1,
-            'post_id'     : 123456,
-            'user_name'   : 'test user 1',
-            'time'        : datetime.datetime(2018, 7, 19, 22, 20, 23),
+            'prev_post_user_id' : 1,
+            'prev_post_id'      : 123456,
+            'prev_post_time'    : datetime.datetime(2018, 7, 19, 22, 20, 23),
         }
         curr_post = {
             'curr_post_id'   : 123456,
@@ -524,11 +507,9 @@ class TestNecroBot:
         """
         # Test deleted post - score starts with 0 -> added_score should be 0
         prev_post = {
-            'total_score' : 0,
-            'user_id'     : 1,
-            'post_id'     : 123456,
-            'user_name'   : 'test user 1',
-            'time'        : datetime.datetime(2018, 7, 19, 22, 20, 24),
+            'prev_post_user_id' : 1,
+            'prev_post_id'      : 123456,
+            'prev_post_time'    : datetime.datetime(2018, 7, 19, 22, 20, 24),
         }
         curr_post = {
             'curr_post_id'   : 123456,
@@ -544,12 +525,19 @@ class TestNecroBot:
         assert added_score == 0, 'added_score is wrong'
 
         # Test deleted post - score starts with 100 -> added_score should be -|100/2| = -50
-        prev_post = {
-            'total_score' : 100,
+        self.bot.update_user_data({
+            'added_score' : 100 - self.bot.get_user_points(1, self.bot.DB_TYPE_ALLTIME),
             'user_id'     : 1,
-            'post_id'     : 123456,
             'user_name'   : 'test user 1',
-            'time'        : datetime.datetime(2018, 7, 19, 22, 20, 24),
+            'post_id'     : 123455
+        })
+        assert self.bot.get_user_points(1, self.bot.DB_TYPE_ALLTIME) == 100, 'user score is wrong'
+        assert self.bot.get_user_points(1, self.bot.DB_TYPE_MONTHLY) == 100, 'user score is wrong'
+
+        prev_post = {
+            'prev_post_user_id' : 1,
+            'prev_post_id'      : 123456,
+            'prev_post_time'    : datetime.datetime(2018, 7, 19, 22, 20, 24),
         }
         curr_post = {
             'curr_post_id'   : 123456,
@@ -565,12 +553,19 @@ class TestNecroBot:
         assert added_score == -50, 'added_score is wrong'
 
         # Test deleted post - score starts with -100 -> added_score should be -|-100/2| = -50
-        prev_post = {
-            'total_score' : -100,
+        self.bot.update_user_data({
+            'added_score' : -100 - self.bot.get_user_points(1, self.bot.DB_TYPE_ALLTIME),
             'user_id'     : 1,
-            'post_id'     : 123456,
             'user_name'   : 'test user 1',
-            'time'        : datetime.datetime(2018, 7, 19, 22, 20, 24),
+            'post_id'     : 123455
+        })
+        assert self.bot.get_user_points(1, self.bot.DB_TYPE_ALLTIME) == -100, 'user score is wrong'
+        assert self.bot.get_user_points(1, self.bot.DB_TYPE_MONTHLY) == -100, 'user score is wrong'
+
+        prev_post = {
+            'prev_post_user_id' : 1,
+            'prev_post_id'      : 123456,
+            'prev_post_time'    : datetime.datetime(2018, 7, 19, 22, 20, 24),
         }
         curr_post = {
             'curr_post_id'   : 123456,
@@ -586,12 +581,19 @@ class TestNecroBot:
         assert added_score == -50, 'added_score is wrong'
 
         # Test deleted post - score starts with -2000000000 -> added_score should be -1
-        prev_post = {
-            'total_score' : -2000000000,
+        self.bot.update_user_data({
+            'added_score' : -2000000000 - self.bot.get_user_points(1, self.bot.DB_TYPE_ALLTIME),
             'user_id'     : 1,
-            'post_id'     : 123456,
             'user_name'   : 'test user 1',
-            'time'        : datetime.datetime(2018, 7, 19, 22, 20, 24),
+            'post_id'     : 123455
+        })
+        assert self.bot.get_user_points(1, self.bot.DB_TYPE_ALLTIME) == -2000000000, 'user score is wrong'
+        assert self.bot.get_user_points(1, self.bot.DB_TYPE_MONTHLY) == -2000000000, 'user score is wrong'
+
+        prev_post = {
+            'prev_post_user_id' : 1,
+            'prev_post_id'      : 123456,
+            'prev_post_time'    : datetime.datetime(2018, 7, 19, 22, 20, 24),
         }
         curr_post = {
             'curr_post_id'   : 123456,
@@ -607,12 +609,19 @@ class TestNecroBot:
         assert added_score == -1, 'added_score is wrong'
 
         # Test deleted post - score starts with 2000000000 -> added_score should be -1000000000
-        prev_post = {
-            'total_score' : 2000000000,
+        self.bot.update_user_data({
+            'added_score' : 2000000000 - self.bot.get_user_points(1, self.bot.DB_TYPE_ALLTIME),
             'user_id'     : 1,
-            'post_id'     : 123456,
             'user_name'   : 'test user 1',
-            'time'        : datetime.datetime(2018, 7, 19, 22, 20, 24),
+            'post_id'     : 123455
+        })
+        assert self.bot.get_user_points(1, self.bot.DB_TYPE_ALLTIME) == 2000000000, 'user score is wrong'
+        assert self.bot.get_user_points(1, self.bot.DB_TYPE_MONTHLY) == 2000000000, 'user score is wrong'
+
+        prev_post = {
+            'prev_post_user_id' : 1,
+            'prev_post_id'      : 123456,
+            'prev_post_time'    : datetime.datetime(2018, 7, 19, 22, 20, 24),
         }
         curr_post = {
             'curr_post_id'   : 123456,
@@ -629,11 +638,9 @@ class TestNecroBot:
 
         # Test normal post - score starts with x -> added_score should be 0
         prev_post = {
-            'total_score' : 343434,
-            'user_id'     : 1,
-            'post_id'     : 123456,
-            'user_name'   : 'test user 1',
-            'time'        : datetime.datetime(2018, 7, 19, 22, 20, 23),
+            'prev_post_user_id' : 1,
+            'prev_post_id'      : 123456,
+            'prev_post_time'    : datetime.datetime(2018, 7, 19, 22, 20, 23),
         }
         curr_post = {
             'curr_post_id'   : 123456,
@@ -654,20 +661,22 @@ class TestNecroBot:
         Tests top 10 list to return user points in the correct order and amount
         """
         # Add a bunch of random scores
-        for i in range(11):
+        for i in range(self.bot._ThreadNecroBotCore__MAX_ENTRIES_TOP_SCORE + 10):
             data = {
                 'added_score' : 100*random.random(),
                 'user_id'     : i,
                 'post_id'     : 10000 + i*10,
                 'user_name'   : 'test user ' + str(i)
             }
-            self.bot.update_user_data(data, self.bot.DB_TYPE_ALLTIME)
+            self.bot.update_user_data(data)
 
             top_10_list = self.bot.get_top_10_list(self.bot.DB_TYPE_ALLTIME)
-            for i in range(len(top_10_list) - 1):
-                assert top_10_list[i]['points'] > top_10_list[i + 1]['points'], f'#{i} pts are less than #{i + 1}'
 
-        assert len(top_10_list) == 10, 'Top 10 list does not have the expected number of entries'
+            assert len(top_10_list) == min(self.bot._ThreadNecroBotCore__MAX_ENTRIES_TOP_SCORE, i + 1), 'Top 10 list does not have the expected number of entries'
+            for i in range(len(top_10_list) - 1):
+                assert top_10_list[i]['points_alltime'] > top_10_list[i + 1]['points_alltime'], f'#{i} pts are less than #{i + 1}'
+
+        assert len(top_10_list) == self.bot._ThreadNecroBotCore__MAX_ENTRIES_TOP_SCORE, 'Top 10 list does not have the expected number of entries'
 
         # Add a bunch of low scores
         for i in range(100):
@@ -677,11 +686,11 @@ class TestNecroBot:
                 'post_id'     : 10000 + i*10,
                 'user_name'   : 'test user ' + str(i)
             }
-            self.bot.update_user_data(data, self.bot.DB_TYPE_ALLTIME)
+            self.bot.update_user_data(data)
 
             top_10_list = self.bot.get_top_10_list(self.bot.DB_TYPE_ALLTIME)
             for i in range(len(top_10_list) - 1):
-                assert top_10_list[i]['points'] > top_10_list[i + 1]['points'], f'#{i} pts are less than #{i + 1}'
+                assert top_10_list[i]['points_alltime'] > top_10_list[i + 1]['points_alltime'], f'#{i} pts are less than #{i + 1}'
 
         assert len(top_10_list) == 10, 'Top 10 list does not have the expected number of entries'
 
@@ -693,13 +702,13 @@ class TestNecroBot:
                 'post_id'     : 10000 + i*10,
                 'user_name'   : 'test user ' + str(i)
             }
-            self.bot.update_user_data(data, self.bot.DB_TYPE_ALLTIME)
+            self.bot.update_user_data(data)
 
             top_10_list = self.bot.get_top_10_list(self.bot.DB_TYPE_ALLTIME)
             for i in range(len(top_10_list) - 1):
-                assert top_10_list[i]['points'] > top_10_list[i + 1]['points'], f'#{i} pts are less than #{i + 1}'
+                assert top_10_list[i]['points_alltime'] > top_10_list[i + 1]['points_alltime'], f'#{i} pts are less than #{i + 1}'
 
-        assert len(top_10_list) == 10, 'Top 10 list does not have the expected number of entries'
+        assert len(top_10_list) == self.bot._ThreadNecroBotCore__MAX_ENTRIES_TOP_SCORE, 'Top 10 list does not have the expected number of entries'
 
 
     def test_top_scores_all_time(self):
@@ -709,19 +718,19 @@ class TestNecroBot:
         # Add a bunch of random scores
         for i in range(11):
             new_score_data = {
-            'time'        : str(datetime.datetime(2018, 7, 19, 22, i, 25)),
-            'user_id'     : str(i),
-            'user_name'   : str('test user ' + str(i)),
-            'post_id'     : str(10000 + i*10),
-            'added_score' : '%.3f'%(100*random.random()),
+                'time'        : str(datetime.datetime(2018, 7, 19, 22, i, 25)),
+                'user_id'     : str(i),
+                'user_name'   : str('test user ' + str(i)),
+                'post_id'     : str(10000 + i*10),
+                'added_score' : '%.3f'%(100*random.random()),
             }
-            self.bot.update_top_score_data(new_score_data, self.bot.DB_TYPE_ALLTIME)
+            self.bot.update_top_score_data(new_score_data)
 
             top_scores_list = self.bot.get_top_scores_list(self.bot.DB_TYPE_ALLTIME)
             for i in range(1, len(top_scores_list)):
                 assert float(top_scores_list[i - 1]['added_score']) > float(top_scores_list[i]['added_score']), f'#{i - 1} place is less than #{i} place'
 
-        assert len(top_scores_list) <= self.bot.MAX_TOP_SCORE_ENTRIES, 'Top score list does not have the expected number of entries'
+        assert len(top_scores_list) <= self.bot._ThreadNecroBotCore__MAX_ENTRIES_TOP_SCORE, 'Top score list does not have the expected number of entries'
 
         # Add a bunch of low scores
         for i in range(100):
@@ -732,13 +741,13 @@ class TestNecroBot:
                 'post_id'     : f'{10000 + i*10}',
                 'added_score' : f'{10*random.random():.3f}',
                 }
-            self.bot.update_top_score_data(new_score_data, self.bot.DB_TYPE_ALLTIME)
+            self.bot.update_top_score_data(new_score_data)
 
             top_scores_list = self.bot.get_top_scores_list(self.bot.DB_TYPE_ALLTIME)
             for i in range(len(top_scores_list) - 1):
                 assert float(top_scores_list[i]['added_score']) > float(top_scores_list[i + 1]['added_score']), f'#{i} pts are less than #{i + 1}'
 
-        assert len(top_scores_list) == self.bot.MAX_TOP_SCORE_ENTRIES, 'Top score list does not have the expected number of entries'
+        assert len(top_scores_list) == self.bot._ThreadNecroBotCore__MAX_ENTRIES_TOP_SCORE, 'Top score list does not have the expected number of entries'
 
         # Add a bunch of high scores
         for i in range(100):
@@ -749,13 +758,13 @@ class TestNecroBot:
                 'post_id'     : str(10000 + i*10),
                 'added_score' : '%.3f'%(1000*random.random()),
                 }
-            self.bot.update_top_score_data(new_score_data, self.bot.DB_TYPE_ALLTIME)
+            self.bot.update_top_score_data(new_score_data)
 
             top_scores_list = self.bot.get_top_scores_list(self.bot.DB_TYPE_ALLTIME)
             for i in range(len(top_scores_list) - 1):
                 assert float(top_scores_list[i]['added_score']) > float(top_scores_list[i + 1]['added_score']), f'#{i} pts are less than #{i + 1}'
 
-        assert len(top_scores_list) == self.bot.MAX_TOP_SCORE_ENTRIES, 'Top score list does not have the expected number of entries'
+        assert len(top_scores_list) == self.bot._ThreadNecroBotCore__MAX_ENTRIES_TOP_SCORE, 'Top score list does not have the expected number of entries'
 
 
     def test_log_all_time(self):
@@ -773,10 +782,10 @@ class TestNecroBot:
                 'added_score' : '%.3f'%(100*random.random()),
                 'total_score' : str(user_score_all_time)
             }
-            self.bot.update_log_data(log_data, self.bot.DB_TYPE_ALLTIME)
+            self.bot.update_log_data(log_data)
 
         log_list = self.bot.get_log_list(self.bot.DB_TYPE_ALLTIME)
-        assert len(log_list) <= self.bot.MAX_LOG_ENTRIES, 'Log list does not have the expected number of entries'
+        assert len(log_list) <= self.bot._ThreadNecroBotCore__MAX_ENTRIES_LOGS, 'Log list does not have the expected number of entries'
         assert int(log_list[-1]['post_id']) > int(log_list[0]['post_id']), 'Log list should be sorted from oldest to newest'
 
 
@@ -788,18 +797,20 @@ class TestNecroBot:
 
         for i in range(100):
             data = {
+                'time'        : str(datetime.datetime.now()),
                 'added_score' : 100*random.random(),
                 'user_id'     : i,
                 'post_id'     : 10000 + i*10,
                 'user_name'   : 'test user ' + str(i)
             }
-            self.bot.update_user_data(data, self.bot.DB_TYPE_ALLTIME)
+            self.bot.update_user_data(data)
+            self.bot.update_log_data(data)
 
         # Test positive point addition to user
         test_user_50_pts_before = self.bot.get_user_points(50, self.bot.DB_TYPE_ALLTIME)
 
         bot_cmd = ThreadNecroBotTest.BotCmd(self.logger, self.bot)
-        print(bot_cmd.cmd_add_user_points['exec'](bot_cmd, cmd_key, 'test user 50', '123.456', 'all_time'))
+        print(bot_cmd.cmd_add_user_points['exec'](bot_cmd, cmd_key, 'test user 50', '123.456'))
 
         test_user_50_pts_after = self.bot.get_user_points(50, self.bot.DB_TYPE_ALLTIME)
 
@@ -811,7 +822,7 @@ class TestNecroBot:
         test_user_50_pts_before = self.bot.get_user_points(50, self.bot.DB_TYPE_ALLTIME)
 
         bot_cmd = ThreadNecroBotTest.BotCmd(self.logger, self.bot)
-        print(bot_cmd.cmd_add_user_points['exec'](bot_cmd, cmd_key, 'test user 50', '-123.456', 'all_time'))
+        print(bot_cmd.cmd_add_user_points['exec'](bot_cmd, cmd_key, 'test user 50', '-123.456'))
 
         test_user_50_pts_after = self.bot.get_user_points(50, self.bot.DB_TYPE_ALLTIME)
 
@@ -833,14 +844,20 @@ class TestNecroBot:
                 'post_id'     : 10000 + i*10,
                 'user_name'   : 'test user ' + str(i)
             }
-            self.bot.update_user_data(data, self.bot.DB_TYPE_ALLTIME)
+            self.bot.update_user_data(data)
 
         bot_cmd = ThreadNecroBotTest.BotCmd(self.logger, self.bot)
-        print(bot_cmd.cmd_add_user_points['exec'](bot_cmd, cmd_key, 'test user 50', '1.23456', 'all_time'))
+        print(bot_cmd.cmd_add_user_points['exec'](bot_cmd, cmd_key, 'test user 50', '1.23456'))
 
         # Make sure the top 10 list is returned sorted correctly after invoking the add_user_points command
         top_10_list = self.bot.get_top_10_list(self.bot.DB_TYPE_ALLTIME)
         for i in range(len(top_10_list) - 1):
-            assert top_10_list[i]['points'] > top_10_list[i + 1]['points'], f'#{i} pts are less than #{i + 1}'
+            assert top_10_list[i]['points_alltime'] > top_10_list[i + 1]['points_alltime'], f'#{i} pts are less than #{i + 1}'
+
+        assert len(top_10_list) <= 10, 'Top 10 list does not have the expected number of entries'
+
+        top_10_list = self.bot.get_top_10_list(self.bot.DB_TYPE_MONTHLY)
+        for i in range(len(top_10_list) - 1):
+            assert top_10_list[i]['points_monthly'] > top_10_list[i + 1]['points_monthly'], f'#{i} pts are less than #{i + 1}'
 
         assert len(top_10_list) <= 10, 'Top 10 list does not have the expected number of entries'

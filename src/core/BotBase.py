@@ -59,10 +59,6 @@ class BotBase:
         raise NotImplementedError(msg)
 
 
-    def get_db_table(self, name: str) -> tinydb.TinyDB.table_class:
-        return self.__core.get_db_table(f'{self.__name}_{name}')
-
-
     def get_cfg(self, src: str, key: str):
         return self.__core.get_cfg(src, key)
 
@@ -71,11 +67,11 @@ class BotBase:
         return self.__name
 
 
-    def edit_post(self, post_id: Union[int, str], new_content: str, append: bool = False):
+    def edit_post(self, post_id: int | str, new_content: str, append: bool = False):
         self.__core.edit_post(post_id, new_content, append)
 
 
-    def get_post(self, post_id: Union[int, str], page: Optional[requests.Response] = None) -> "Post":
+    def get_post(self, post_id: int | str, page: Optional[requests.Response] = None) -> "Post":
         self.__core.get_post(post_id, page)
 
 

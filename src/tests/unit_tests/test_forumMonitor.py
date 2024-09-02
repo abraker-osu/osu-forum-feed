@@ -52,7 +52,7 @@ class TestForumMonitor:
                 'Core' : {
                     'is_dbg'      : True,
                     'bots_path'   : 'src/bots',
-                    'db_path_dbg' : 'db/dbg',
+                    'db_path_dbg' : 'db/test',
 
                     'latest_post_id': 9059432,
 
@@ -110,7 +110,7 @@ class TestForumMonitor:
 
 
     @staticmethod
-    def __get_post(post_id: Union[int, str], page: Optional[requests.Response] = None) -> Post:
+    def __get_post(post_id: int | str, page: Optional[requests.Response] = None) -> Post:
         logger = logging.Logger(TestForumMonitor.__name__)
         with open('src/tests/unit_tests/forum_test_page.htm', 'rb') as test_forum_page:
             content = test_forum_page.read()

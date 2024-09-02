@@ -78,14 +78,9 @@ class TestBotCore:
             content = test_forum_page.read()
 
         root  = BeautifulSoup(content, "lxml")
-        topic = Topic(root, logger)
+        topic = Topic(root)
 
         return topic.first_post
-
-
-    def test_db(self):
-        # Just make sure it does not crash
-        test_table = self.core.get_db_table('test')
 
 
     def test_bots(self):

@@ -43,7 +43,6 @@ class ThreadNecroBotCore():
     __TABLE_WINNERS         = 'monthly_winners'
     __TABLE_USERS           = 'userdata'
     __TABLE_META_PREV_POST  = 'prevpost'
-    __TABLE_META_IDX        = 'idx'
 
     __MAX_ENTRIES_LOGS      = 10
     __MAX_ENTRIES_TOP_SCORE = 10
@@ -54,17 +53,6 @@ class ThreadNecroBotCore():
 
         self._n = math.log(2000.0/60.0)/math.log(24)
         self._b = 60.0/math.pow(60.0, self._n)
-
-        self.multi_post_pts_penalty = 100
-
-
-    # def get_timestamp(self, log_timestamp: str):
-    #     if log_timestamp >= len(ThreadNecroBotCore.log_timestamp):
-    #         return None
-
-    #     try: return ThreadNecroBotCore.log_timestamp[log_timestamp]
-    #     except:
-    #         return None
 
 
     def update_user_data(self, user_data: dict):
@@ -94,7 +82,7 @@ class ThreadNecroBotCore():
         points_monthly = f'{points_monthly:.3f}'
 
         with tinydb.TinyDB(f'{self.__db_path}/{self.__DB_FILE_USERS}') as db:
-            table_user = db.tables(self.__TABLE_USERS)
+            table_user = db.table(self.__TABLE_USERS)
             table_user.upsert(table.Document(
                 {
                     'points_alltime' : float(points_alltime),
@@ -114,7 +102,7 @@ class ThreadNecroBotCore():
         3. Update log table entry and increment (or wrap) log table meta entry index
 
         fmt `log_data`:
-            { time' : str, 'user_name' : str, 'user_id' : int, 'post_id' : int, 'added_score' : float, 'total_score' : float' }
+            { time' : str, 'user_name' : str, 'user_id' : int, 'post_id' : int, 'added_score' : float }
 
         fmt DB:
             "log_data" : {
@@ -150,8 +138,6 @@ class ThreadNecroBotCore():
             num = min(num + 1, self.__MAX_ENTRIES_LOGS)
             table_meta.update(table.Document({ 'num' : num }, doc_id=self.DB_TYPE_MONTHLY))
 
-        log_list = self.get_log_list(self.DB_TYPE_ALLTIME)
-        self.logger.info(self.generate_log_line(log_data, log_list))
 
 
     def update_top_score_data(self, new_score_data: dict):
@@ -174,7 +160,7 @@ class ThreadNecroBotCore():
             for table_name in [ self.__TABLE_SCORES_ALLTIME, self.__TABLE_SCORES_MONTHLY ]:
                 table_scores = db.table(table_name)
 
-                if len(table) < self.__MAX_ENTRIES_TOP_SCORE:
+                if len(table_scores) < self.__MAX_ENTRIES_TOP_SCORE:
                     table_scores.insert(new_score_data)
                     return
 
@@ -224,22 +210,50 @@ class ThreadNecroBotCore():
             table_winners.insert(monthly_winner)
 
 
-    def update_metadata(self):
+    def update_metadata(self, data: dict):
         """
-        "prevpost" : {
-            [id:int] : { 'prev_post_id' : int, 'prev_post_time' : str, 'prev_post_user_id' : int },
-            ...
-        }
+        fmt `data`:
+            { 'time' : str, 'user_id' : str, 'user_name' : str, 'post_id' : int, 'added_score' : float }
+
+        fmt DB:
+            "prevpost" : {
+                [id:int] : { 'prev_post_id' : int, 'prev_post_time' : str, 'prev_post_user_id' : int },
+                ...
+            }
         """
+        with tinydb.TinyDB(f'{self.__db_path}/{self.__DB_FILE_USERS}') as db:
+            table_meta = db.table(self.__TABLE_META_PREV_POST)
+            table_meta.upsert(table.Document({
+                'prev_post_id'      : data['post_id'],
+                'prev_post_time'    : data['time'],
+                'prev_post_user_id' : data['user_id'],
+            }, doc_id=0))
+
+
+    def get_user(self, user_name: str) -> table.Document:
+        """
+        fmt DB:
+            "userdata" : {
+                [user_id:int] : { 'points_alltime' : float, 'points_monthly' : float, 'user_name' : str, 'post_id' : int },
+                [user_id:int] : { 'points_alltime' : float, 'points_monthly' : float, 'user_name' : str, 'post_id' : int },
+                ...
+            }
+        """
+        query = tinydb.Query()
+
+        with tinydb.TinyDB(f'{self.__db_path}/{self.__DB_FILE_USERS}') as db:
+            table_users = db.table(self.__TABLE_USERS)
+            return table_users.get(query['user_name'] == user_name)
 
 
     def get_user_points(self, user_id: str | int, type_id: int) -> float:
         """
-        "userdata" : {
-            [user_id:int] : { 'points_alltime' : float, 'points_monthly' : float, 'user_name' : str, 'post_id' : int },
-            [user_id:int] : { 'points_alltime' : float, 'points_monthly' : float, 'user_name' : str, 'post_id' : int },
-            ...
-        }
+        fmt DB:
+            "userdata" : {
+                [user_id:int] : { 'points_alltime' : float, 'points_monthly' : float, 'user_name' : str, 'post_id' : int },
+                [user_id:int] : { 'points_alltime' : float, 'points_monthly' : float, 'user_name' : str, 'post_id' : int },
+                ...
+            }
         """
         key_id = 'points_alltime' if type_id == self.DB_TYPE_ALLTIME else 'points_monthly'
 
@@ -282,7 +296,7 @@ class ThreadNecroBotCore():
             return rank
 
 
-    def get_log_list(self, db_type: int) -> "list[table.Document]":
+    def get_log_list(self, db_type: int) -> list[table.Document]:
         """
         fmt DB:
             'log_data' : {
@@ -310,11 +324,11 @@ class ThreadNecroBotCore():
 
             return [
                 table_log.get(doc_id=i)
-                for i in range(lst_len - 1, lst_len - num - 1, -1)
+                for i in range(lst_len - num, lst_len)
             ]
 
 
-    def get_top_scores_list(self, db_type: int) -> "list[table.Document]":
+    def get_top_scores_list(self, db_type: int) -> list[table.Document]:
         """
         fmt DB:
             "top_scores" : {
@@ -340,7 +354,7 @@ class ThreadNecroBotCore():
             )
 
 
-    def get_top_10_list(self, type_id: int) -> "list[table.Document]":
+    def get_top_10_list(self, type_id: int) -> list[table.Document]:
         """
         fmt DB:
             "userdata" : {
@@ -352,16 +366,18 @@ class ThreadNecroBotCore():
         key_id = 'points_alltime' if type_id == self.DB_TYPE_ALLTIME else 'points_monthly'
 
         with tinydb.TinyDB(f'{self.__db_path}/{self.__DB_FILE_USERS}') as db:
+            table_users = db.table(self.__TABLE_USERS)
+
             ranked_entries = sorted(
-                db.all(),
+                table_users.all(),
                 key = lambda entry: float(entry[key_id]),
                 reverse = True
             )
 
-            return ranked_entries[:10]
+            return ranked_entries[:self.__MAX_ENTRIES_TOP_SCORE]
 
 
-    def get_monthly_winners_list(self) -> "list[table.Document]":
+    def get_monthly_winners_list(self) -> list[table.Document]:
         """
         fmt DB:
             'monthly_winners' : {
@@ -384,96 +400,7 @@ class ThreadNecroBotCore():
             table_logs = db.table(self.__TABLE_LOGS)
 
 
-    def generate_log_line(self, log_data: dict, log_list: "list[dict]"):
-        sign = '+' if float(log_data['added_score']) >= 0 else ''
-        return self.generate_log_format(log_list).format(
-            log_data['time'],
-            log_data['user_name'],
-            sign + str(log_data['added_score']),
-            log_data['total_score']
-        )
-
-
-    def generate_log_format(self, log_list: "list[dict]"):
-        longest_username = 0
-        for log in log_list:
-            longest_username = max(longest_username, len(log['user_name']))
-
-        longest_score = 0
-        for log in log_list:
-            longest_score = max(longest_score, len(str(abs(float(log['added_score'])))))
-
-        return '[ {0} ]    {1:<%d}  {2:<%d}  | Total Score: {3}' % (longest_username, longest_score + 1)
-
-
-    def get_forum_log_text(self, log_list: "list[dict]"):
-        log_text = ''
-
-        # Generate log lines
-        for log_data in reversed(log_list[:]):
-            log_text += self.generate_log_line(log_data, log_list) + '\n'
-
-        if log_text == '':
-            log_text = 'N/A'
-
-        return log_text
-
-
-    def get_top_scores_text(self, top_scores_list: "list[dict]"):
-        longest_username = 0
-        for top_score in top_scores_list:
-            longest_username = max(longest_username, len(top_score['user_name']))
-
-        top_scores_format = '#{0:<%d} {1} {2:<%d}: {3} pts' % (2, longest_username)
-        top_scores_text   = ''
-
-        for i in range(len(top_scores_list)):
-            text = top_scores_format.format(i + 1, top_scores_list[i]['time'], top_scores_list[i]['user_name'] , top_scores_list[i]['added_score'])
-            top_scores_text += text + '\n'
-
-        if top_scores_text == '':
-            top_scores_text = 'N/A'
-
-        return top_scores_text
-
-
-    def get_top_10_text(self, top_10_list: "list[dict]"):
-        longest_username = 0
-        for user in top_10_list:
-            longest_username = max(longest_username, len(user['user_name']))
-
-        top_10_format = '#{0:<%d} {1:<%d}: {2} pts' % (2, longest_username)
-        top_10_text   = ''
-
-        for i in range(len(top_10_list)):
-            text = top_10_format.format(i + 1, top_10_list[i]['user_name'], top_10_list[i]['points'])
-            top_10_text += text + '\n'
-
-        if top_10_text == '':
-            top_10_text = 'N/A'
-
-        return top_10_text
-
-
-    def get_monthly_winners_text(self, monthly_winners_list: "list[dict]"):
-        longest_username = 0
-        for user in monthly_winners_list:
-            longest_username = max(longest_username, len(user['user_name']))
-
-        monthly_winners_format = '{0} {1:<%d}: {2} pts' % (longest_username)
-        monthly_winners_text   = ''
-
-        # Generate log lines
-        for monthly_winner in monthly_winners_list[:]:
-            monthly_winners_text += monthly_winners_format.format(monthly_winner['time'], monthly_winner['user_name'], monthly_winner['points']) + '\n'
-
-        if monthly_winners_text == '':
-            monthly_winners_text = 'N/A'
-
-        return monthly_winners_text
-
-
-    def get_prev_post_info(self):
+    def get_prev_post_info(self) -> table.Document:
         """
         "prevpost" : {
             [id:int] : { 'prev_post_id' : int, 'prev_post_time' : str, 'prev_post_user_id' : int },
