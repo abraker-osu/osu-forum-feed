@@ -587,12 +587,12 @@ class ThreadNecroBot(BotBase, ThreadNecroBotCore):
         })
         def cmd_add_user_points(self, cmd_key: str, user_name: str, points: float) -> dict:
             """
-            db Format:
-            {
-                user_id : { 'points' : '...', 'user_name' : '...', 'post_id' : '...' },
-                user_id : { 'points' : '...', 'user_name' : '...', 'post_id' : '...' },
-                ...
-            }
+            fmt DB:
+                "userdata" : {
+                    [user_id:int] : { 'points_alltime' : float, 'points_monthly' : float, 'user_name' : str, 'post_id' : int },
+                    [user_id:int] : { 'points_alltime' : float, 'points_monthly' : float, 'user_name' : str, 'post_id' : int },
+                    ...
+                }
             """
             if not self.validate_request(cmd_key):
                 return Cmd.err('Insufficient permissions')

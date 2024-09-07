@@ -184,8 +184,8 @@ class ThreadNecroBotCore():
         3. Update table
 
         'monthly_winners' : {
-            [idx:int] : { 'time' : str, 'user_id' : int, 'points' : float, 'user_name' : str},
-            [idx:int] : { 'time' : str, 'user_id' : int, 'points' : float, 'user_name' : str},
+            [idx:int] : { 'time' : str, 'user_id' : int, 'points' : float, 'user_name' : str },
+            [idx:int] : { 'time' : str, 'user_id' : int, 'points' : float, 'user_name' : str },
             ...
         }
         """
