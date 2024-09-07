@@ -559,23 +559,22 @@ class ThreadNecroBot(BotBase, ThreadNecroBotCore):
         perm = Cmd.PERMISSION_PUBLIC,
         info = 'Prints the number of points the specified user has',
         args = {
-            'user_name' : Cmd.arg(str, False, 'Name of the user to print the number of point of'),
-            'db_type'   : Cmd.arg(str, False, 'all_time or monthly')
+            'user_name' : Cmd.arg(str, False, 'Name of the user to print the number of point of')
         })
-        def cmd_get_user_points(self, user_name: str, db_type: str):
-            if   db_type == 'all_time': user_data_table = self.obj.db_tables[self.obj.DB_TYPE_ALLTIME]
-            elif db_type == 'monthly':  user_data_table = self.obj.db_tables[self.obj.DB_TYPE_MONTHLY]
-            else: return Cmd.err('Invalid db type specified. Use "all_time" or "monthly"')
-
-            # Request
-            query = tinydb.Query()
-            entry = user_data_table.get(query.user_name == str(user_name))
-
-            # Process
+        def cmd_get_user_points(self, user_name: str):
+            """
+            fmt DB:
+                "userdata" : {
+                    [user_id:int] : { 'points_alltime' : float, 'points_monthly' : float, 'user_name' : str, 'post_id' : int },
+                    [user_id:int] : { 'points_alltime' : float, 'points_monthly' : float, 'user_name' : str, 'post_id' : int },
+                    ...
+                }
+            """
+            entry = self.obj.get_user(user_name)
             if not entry:
                 return Cmd.err(f'Unable to find user "{user_name}"')
 
-            return Cmd.ok(f'{user_name} has {entry["points"]} pts')
+            return Cmd.ok(f'{user_name} | all time: {entry["points_alltime"]} pts   monthly: {entry["points_monthly"]}')
 
 
         @Cmd.help(
