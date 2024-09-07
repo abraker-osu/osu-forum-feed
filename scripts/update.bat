@@ -1,5 +1,6 @@
 @echo off
 
+
 git fetch
 git checkout origin/main
 

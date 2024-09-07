@@ -7,6 +7,11 @@ if [ ! -d "venv" ]; then
     python3 -m venv venv
 fi
 
+if [ ! -d "venv" ]; then
+    echo "Failed to create venv!"
+    exit 1
+fi
+
 source venv/bin/activate
 
 if [[ "$VIRTUAL_ENV" == "" ]]; then

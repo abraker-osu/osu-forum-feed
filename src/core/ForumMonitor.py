@@ -33,8 +33,11 @@ class ForumMonitor(BotCore, SessionMgrV2):
 
         if login:
             self.login(
-                self.get_cfg('Core', 'web_username'),
-                self.get_cfg('Core', 'web_password')
+                self.get_cfg('Core', 'api_client_id'),
+                self.get_cfg('Core', 'api_client_secret'),
+                self.get_cfg('Core', 'mailtrap_api_token'),
+                self.get_cfg('Core', 'mailtrap_addr_src'),
+                self.get_cfg('Core', 'email_addr_dst')
             )
 
         self.__post_rate = 5.0
