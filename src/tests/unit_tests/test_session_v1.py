@@ -38,5 +38,8 @@ class TestSessionV1:
     @pytest.mark.login
     def test_sessionV1_login(self):
         session_mgr = SessionMgrV1()
-        session_mgr.login(self.config['Core']['web_username'], self.config['Core']['web_password'])
+        session_mgr.login(
+            self.config['Core']['osuweb_username'],
+            self.config['Core']['osuweb_password']
+        )
         session_mgr.__del__()

@@ -9,9 +9,9 @@ from tinydb.table import Document
 
 from threading import Thread
 
-from core.BotCore import BotCore
-from core.SessionMgrV2 import SessionMgrV2
-from core import BotException
+from .BotCore import BotCore
+from .SessionMgrV2 import SessionMgrV2
+from .BotException import BotException
 
 
 class ForumMonitor(BotCore, SessionMgrV2):
@@ -33,11 +33,9 @@ class ForumMonitor(BotCore, SessionMgrV2):
 
         if login:
             self.login(
-                self.get_cfg('Core', 'api_client_id'),
-                self.get_cfg('Core', 'api_client_secret'),
-                self.get_cfg('Core', 'mailtrap_api_token'),
-                self.get_cfg('Core', 'mailtrap_addr_src'),
-                self.get_cfg('Core', 'email_addr_dst')
+                self.get_cfg('Core', 'osuapiv2_client_id'),
+                self.get_cfg('Core', 'osuapiv2_client_secret'),
+                self.get_cfg('Core', 'discord_bot_port')
             )
 
         self.__post_rate = 5.0

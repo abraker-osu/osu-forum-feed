@@ -1,17 +1,10 @@
-from typing import Optional
-
-import logging
 import socket
-
-import requests
-import webbrowser
-import mailtrap
 import ossapi
 import requests_oauthlib
 
 from .SessionMgrBase import SessionMgrBase
-from core.BotException import BotException
-
+from .DicordClient import DiscordClient
+from .BotException import BotException
 
 
 
@@ -108,25 +101,20 @@ class OssapiCustom(ossapi.Ossapi):
         See :doc:`Domains <domains>` for more about domains.
     """
     def __init__(self, client_id: int, client_secret: str,
-        redirect_uri:       Optional[str]                   = None,
+        redirect_uri:       str | type[None]                = None,
         scopes:             list[str | ossapi.Scope]        = [ ossapi.Scope.PUBLIC ],
         domain:             str | ossapi.Domain             = ossapi.Domain.OSU,
-        grant:              Optional[ossapi.Grant | str]    = None,
+        grant:              ossapi.Grant | str | type[None] = None,
         strict:             bool                            = False,
 
-        token_directory:    Optional[str]                   = None,
-        token_key:          Optional[str]                   = None,
-        access_token:       Optional[str]                   = None,
-        refresh_token:      Optional[str]                   = None,
+        token_directory:    str | type[None]                = None,
+        token_key:          str | type[None]                = None,
+        access_token:       str | type[None]                = None,
+        refresh_token:      str | type[None]                = None,
 
-        mailtrap_api_token: Optional[str]                   = None,
-        mailtrap_addr_src:  Optional[str]                   = None,
-        email_addr_dst:     Optional[str]                   = None,
+        discord_bot_port:   str | type[None]                = None,
     ):
-        self.__mailtrap_api_token = mailtrap_api_token
-        self.__mailtrap_addr_src  = mailtrap_addr_src
-        self.__email_addr_dst     = email_addr_dst
-
+        self.__discord_bot_port = discord_bot_port
         ossapi.Ossapi.__init__(self,
             client_id, client_secret,
             domain          = domain,
@@ -143,30 +131,11 @@ class OssapiCustom(ossapi.Ossapi):
         self.log.debug('Ossapi init done')
 
 
-    def _send_email(self, authorization_url: str):
-        self.log.info(f'Sending authorization email to {self.__email_addr_dst}...')
-
-        mailtrap_client = mailtrap.MailtrapClient(token=self.__mailtrap_api_token)
-        mail = mailtrap.Mail(
-            sender = mailtrap.Address(email=self.__mailtrap_addr_src, name='osu forumbot'),
-            to = [
-                mailtrap.Address(email=self.__email_addr_dst)
-            ],
-            subject = 'osu!api v2 authorization',
-            text    = f'The forumbot is requesting authorization to the osu!api: {authorization_url}',
-        )
-
-        try: mailtrap_client.send(mail)
-        except mailtrap.APIError as e:
-            self.log.warning(e)
-            raise
-
-
     def _new_authorization_grant(self, client_id: str, client_secret: str, redirect_uri: str, scopes: list[ossapi.Scope]):
         """
         Authenticates with the api from scratch on the authorization code grant.
         """
-        self.log.info('initializing authorization code')
+        self.log.info('Initializing authorization code')
 
         auto_refresh_kwargs = { 'client_id': client_id, 'client_secret': client_secret }
         session = requests_oauthlib.OAuth2Session(
@@ -178,11 +147,12 @@ class OssapiCustom(ossapi.Ossapi):
             scope               = [ scope.value for scope in scopes ],
         )
 
+        self.log.debug('Sending url...')
         authorization_url, _state = session.authorization_url(self.auth_code_url)
-        try: self._send_email(authorization_url)
-        except:
-            self.log.warning('Failed to send email. Trying to open authorization url in browser instead...')
-            webbrowser.open(authorization_url)
+        DiscordClient.request(self.__discord_bot_port, '/admin/post',{
+            'contents' : f'Requesting authorization to the osu!api: {authorization_url}',
+            'src'      : 'ForumBot'
+        })
 
         # open up a temporary socket so we can receive the GET request to the callback url
         port = int(redirect_uri.rsplit(':', 1)[1].split('/')[0])
@@ -229,9 +199,9 @@ class SessionMgrV2(SessionMgrBase):
     def login(self,
         client_id:          int,
         client_secret:      str,
-        mailtrap_api_token: str = None,
-        mailtrap_addr_src:  str = None,
-        email_addr_dst:     str = None
+
+        token_directory:    str | type[None] = None,
+        discord_bot_port:   str | type[None] = None,
     ):
         if not isinstance(self.__osu_apiv2, type(None)):
             return
@@ -244,9 +214,8 @@ class SessionMgrV2(SessionMgrBase):
             scopes             = [ ossapi.Scope.FORUM_WRITE ],
             grant              = 'authorization',
 
-            mailtrap_api_token = mailtrap_api_token,
-            mailtrap_addr_src  = mailtrap_addr_src,
-            email_addr_dst     = email_addr_dst
+            token_directory  = token_directory,
+            discord_bot_port = discord_bot_port,
         )
 
 

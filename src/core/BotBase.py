@@ -1,12 +1,11 @@
 import logging
-import tinydb
 import requests
 
-from typing import TYPE_CHECKING, Union, Optional
+from typing import TYPE_CHECKING, Optional
 if TYPE_CHECKING:
-    from core import Cmd
-    from core import ForumMonitor
-    from core.parser import Post, Topic
+    from .console_framework import Cmd
+    from .ForumMonitor import ForumMonitor
+    from .parser import Post, Topic
 
 
 class BotBase:
@@ -71,7 +70,7 @@ class BotBase:
         self.__core.edit_post(post_id, new_content, append)
 
 
-    def get_post(self, post_id: int | str, page: Optional[requests.Response] = None) -> "Post":
+    def get_post(self, post_id: int | str, page: requests.Response | type[None] = None) -> "Post":
         self.__core.get_post(post_id, page)
 
 

@@ -20,33 +20,29 @@ Core:
   rate_post_min:    3.0  # (float) Minimum number of seconds to wait between fetching posts
   rate_fetch_fail: 60.0  # (float) Seconds to wait after encountering a connection error when fetching posts
 
-  # Port for discord bot relaying forum feed
+  # Port the discord bot API listens on
+  # NOTE: This is needed for SessionV2 to send osu!apiv2 authorization url
   discord_bot_port:  # (int)
 
   # Discord id of admin
-  discord_admin_user_id:  # (int)
+  discord_bot_admin_user_id:  # (int)
 
-  # Port on which the bot API will listen on
+  # Port on which the bot's API will listen on
   api_port:  # (int)
 
   # SessionV1: Username and password for osu!web
   # NOTE: When logging in, osu! sends a verification to the email address associated with the account.
   #   This must be acknowledged manually upon bot initialization
-  # TODO: Is there a way to avoid putting this in plaintext here?
-  web_username:  # (str)
-  web_password:  # (str)
+  # TODO: This is no longer supported
+  osuweb_username:       # (str)
+  osuweb_password:       # (str)
 
   # SessionV2: Client ID and Client Secret for osu!apiv2
-  api_client_id:      # (str)
-  api_client_secret:  # (str)
+  osuapiv2_client_id:      # (str)
+  osuapiv2_client_secret:  # (str)
 
-  # Create email via: https://mailtrap.io/
-  # This email used to send osu!apiv2 auth link to a main email address.
-  # If not filled in / excluded, SessionV2 will instead open the link
-  # in a web browser
-  mailtrap_api_token:  # (str)
-  mailtrap_addr_src:   # (str)
-  email_addr_dst:      # (str)
+  # Directory where the osu!apiv2 auth2 token will be stored
+  osuapiv2_token_dir: '.'
 
 
 ThreadNecroBot:

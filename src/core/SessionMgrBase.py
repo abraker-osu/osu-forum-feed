@@ -8,21 +8,40 @@ import requests
 from bs4 import BeautifulSoup
 
 
-from core.BotException import BotException
+from .BotException import BotException
 from .parser import Topic, Post
 
 
 
 class SessionMgrBase():
 
-    def __init__(self):
-        self._logger  = logging.getLogger(__class__.__qualname__)
+    _logger = logging.getLogger(__qualname__)
 
+    def __init__(self):
         self.__session = requests.Session()
         self.__last_status_code = None
 
 
-    def login(self, username: str, password: str):
+    def login(self,
+        id_username:  str,
+        key_password: str,
+        # These are for compatibility between SessionMgr v1 and v2
+        token_directory:  str | type[None] = None,
+        discord_bot_port: str | type[None] = None
+    ):
+        """
+        Uses user credentials to log into osu!web just like a normal user would
+
+        NOTE: This no longer works after captchas were added to the login page
+
+        Parameters
+        ----------
+        id_username : str
+            User's username or client id
+
+        key_password : str
+            User's password or client secret
+        """
         raise NotImplementedError
 
 

@@ -2,8 +2,7 @@ import os
 import importlib
 import logging
 
-from core.BotException import BotException
-
+from .BotException import BotException
 from .BotBase import BotBase
 from .parser import Post, Topic
 

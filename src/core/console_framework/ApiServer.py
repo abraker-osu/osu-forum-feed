@@ -161,8 +161,7 @@ class ApiServer():
         ApiServer.__loop = asyncio.get_event_loop()
         ApiServer.__loop.create_task(ApiServer._server.serve())
 
-        ApiServer.__thread = threading.Thread(target=ApiServer.__loop.run_forever)
-        ApiServer.__thread.setDaemon(True)
+        ApiServer.__thread = threading.Thread(target=ApiServer.__loop.run_forever, daemon=True)
         ApiServer.__thread.start()
 
         ApiServer._init = True

@@ -6,8 +6,7 @@ import logging
 
 from core import BotBase
 from core import Cmd
-
-from bots.ForumFeedBotCore import DiscordClient
+from core import DiscordClient
 from core import Topic, Post
 
 

@@ -5,7 +5,7 @@ import requests
 from bs4 import BeautifulSoup
 
 from .SessionMgrBase import SessionMgrBase
-from core.BotException import BotException
+from .BotException import BotException
 
 
 
@@ -26,14 +26,7 @@ class SessionMgrV1(SessionMgrBase):
         self.__logged_in = False
 
 
-    def login(self,
-        username: str,
-        password: str,
-        # These are for compatibility between SessionMgr v1 and v2
-        mailtrap_api_token: str = None,
-        mailtrap_addr_src:  str = None,
-        email_addr_dst:     str = None
-    ):
+    def login(self, username: str, password: str, /):
         """
         Uses user credentials to log into osu!web just like a normal user would
 

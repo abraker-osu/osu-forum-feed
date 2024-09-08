@@ -3,6 +3,7 @@ import pytest
 import logging
 import time
 
+import requests
 import yaml
 
 from core.SessionMgrV2 import SessionMgrV2
@@ -39,11 +40,13 @@ class TestSessionV2:
     @pytest.mark.login
     def test_sessionV2_login(self):
         session_mgr = SessionMgrV2()
-        session_mgr.login(
-            self.config['Core']['api_client_id'],
-            self.config['Core']['api_client_secret'],
-            self.config['Core']['mailtrap_api_token'],
-            self.config['Core']['mailtrap_addr_src'],
-            self.config['Core']['email_addr_dst']
-        )
-        session_mgr.__del__()
+
+        try:
+            session_mgr.login(
+                self.config['Core']['osuapiv2_client_id'],
+                self.config['Core']['osuapiv2_client_secret'],
+                self.config['Core']['osuapiv2_token_dir'],
+                self.config['Core']['discord_bot_port']
+            )
+        except requests.ConnectionError as e:
+            assert False, e
