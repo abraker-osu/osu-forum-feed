@@ -35,6 +35,7 @@ class ForumMonitor(BotCore, SessionMgrV2):
             self.login(
                 self.get_cfg('Core', 'osuapiv2_client_id'),
                 self.get_cfg('Core', 'osuapiv2_client_secret'),
+                self.get_cfg('Core', 'osuapiv2_token_dir'),
                 self.get_cfg('Core', 'discord_bot_port')
             )
 
@@ -199,7 +200,7 @@ class ForumMonitor(BotCore, SessionMgrV2):
 
 
     def run(self):
-        new_post_task   = None
+        new_post_task: Thread = None
         last_post_check = time.time()
 
         warned_post_check_timeout = False
@@ -221,7 +222,7 @@ class ForumMonitor(BotCore, SessionMgrV2):
                             self.__logger.warn('Post checking has timed out! (this means one of the modules halted)')
                             warned_post_check_timeout = True
 
-                if not new_post_task or not new_post_task.isAlive():
+                if not new_post_task or not new_post_task.is_alive():
                     self.__set_status(ForumMonitor.NEW_POST, False)
                     if self.get_enable(ForumMonitor.NEW_POST) == True:
                         new_post_task = Thread(target=self.__check_new_post, args=[])
