@@ -2,10 +2,11 @@ import time
 import logging
 import inspect
 
-from core.console_framework import Cmd
+from .Cmd import Cmd
+
 from core import ForumMonitor
-from core import Utils
 from core import BotBase
+from misc import Utils
 
 
 class CommandProcessor():

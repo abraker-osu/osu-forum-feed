@@ -3,7 +3,7 @@ import platform
 import asyncio
 import socket
 
-from typing import List, Optional, Sequence
+from typing import Optional, Sequence
 
 import logging
 import threading
@@ -12,8 +12,8 @@ import asyncio
 import uvicorn
 import fastapi
 
-from core.console_framework.Cmd import Cmd
-from core.console_framework.CommandProcessor import CommandProcessor
+from .Cmd import Cmd
+from .CommandProcessor import CommandProcessor
 
 
 
@@ -29,7 +29,7 @@ class UvicornServerPatch(uvicorn.Server):
 
     __logger = logging.getLogger('UvicornServerPatch')
 
-    async def startup(self: uvicorn.Server, sockets: Optional[List[socket.socket]] = None) -> None:
+    async def startup(self: uvicorn.Server, sockets: Optional[list[socket.socket]] = None) -> None:
         await self.lifespan.startup()
         if self.lifespan.should_exit:
             self.should_exit = True

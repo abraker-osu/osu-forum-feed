@@ -1,12 +1,9 @@
-from typing import Union, Optional
+from typing import Optional
 
 import logging
-import time
-import json
-
 import requests
-from bs4 import BeautifulSoup
 
+from bs4 import BeautifulSoup
 
 from .BotException import BotException
 from .parser import Topic, Post
@@ -130,7 +127,7 @@ class SessionMgrBase():
         return data
 
 
-    def get_thread(self, thread_id: Union[int, str], page: Optional[requests.Response] = None, post_num: int = 0):
+    def get_thread(self, thread_id: int | str, page: Optional[requests.Response] = None, post_num: int = 0):
         thread_url = f'https://osu.ppy.sh/community/forums/topics/{thread_id}/?n={post_num}'
         if not page:
             page = self.fetch_web_data(thread_url)
@@ -146,7 +143,7 @@ class SessionMgrBase():
         return Topic(BeautifulSoup(page.text, "lxml"))
 
 
-    def get_post(self, post_id: Union[int, str], page: Optional[requests.Response] = None) -> Post:
+    def get_post(self, post_id: int | str, page: Optional[requests.Response] = None) -> Post:
         post_url = f'https://osu.ppy.sh/community/forums/posts/{post_id}'
         if not page:
             page = self.fetch_web_data(post_url)

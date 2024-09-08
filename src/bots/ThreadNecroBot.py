@@ -11,7 +11,6 @@ from core.BotException import BotException
 from core.console_framework import Cmd
 
 from core.parser import Topic, Post
-from core.SessionMgrV2 import SessionMgrV2
 from bots.ThreadNecroBotCore.ThreadNecroBotCore import ThreadNecroBotCore
 
 

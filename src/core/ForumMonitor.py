@@ -10,6 +10,7 @@ from tinydb.table import Document
 from threading import Thread
 
 from .BotCore import BotCore
+from .console_framework import ApiServer
 from .SessionMgrV2 import SessionMgrV2
 from .BotException import BotException
 
@@ -30,6 +31,7 @@ class ForumMonitor(BotCore, SessionMgrV2):
 
         BotCore.__init__(self, config)
         SessionMgrV2.__init__(self)
+        ApiServer.init(self.get_cfg('Core', 'api_port'))
 
         if login:
             self.login(

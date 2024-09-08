@@ -11,7 +11,7 @@ import pathlib
 
 import yaml
 
-from core.Logger import LoggerClass
+from misc import LoggerClass
 from core import ForumMonitor
 
 
