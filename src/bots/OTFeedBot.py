@@ -49,15 +49,16 @@ class OTFeedBot(BotBase):
             'contents'       : post.content_markdown
         }
 
-        self.__send_data(self.logger, 'post', data)
+        self.__send_data(self.logger, data)
 
 
-    def __send_data(self, logger: logging.Logger, route: str, data: "dict[str, str]"):
+    def __send_data(self, logger: logging.Logger, data: "dict[str, str]"):
         handle_rate = self.get_cfg('Core', 'rate_post_min')
 
         while True:
+            discord_bot_port = self.get_cfg('ForumFeedBot', 'discord_bot_port')
             try:
-                DiscordClient.request(self.get_cfg('ForumFeedBot', 'discord_bot_port'), route, data)
+                DiscordClient.request(discord_bot_port, '/osu/post', data)
                 break
             except (requests.exceptions.Timeout, requests.exceptions.ConnectionError):
                 logger.warn(f'No Discord feed server reply! Retrying in {handle_rate} second(s)...')
