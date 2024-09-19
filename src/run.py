@@ -1,7 +1,8 @@
 import sys
 
-if sys.version_info < (3, 8):
-    print('Python 3.8 or later is required!')
+import logging
+if sys.version_info < (3, 10):
+    logging.critical('Python 3.10 or later is required!')
     sys.exit(1)
 
 import logging
