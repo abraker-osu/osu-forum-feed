@@ -1,8 +1,11 @@
-from typing import Union
+from core.BotBase import BotBase
+from core.parser.Post import Post
 
-from core import BotBase
-from core import Cmd
-from core import Post, Topic
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from core import BotCore
+
+from api import Cmd
 
 
 # This to be used as a template for other bots with basic explanatons what the important parts do
@@ -10,8 +13,8 @@ class TestBot(BotBase):
 
     # The enable flag which controls whether the bot will be active or not
     # Every other parameter is to be copy-pasted
-    def __init__(self, core):
-        BotBase.__init__(self, core, self.BotCmd, self.__class__.__name__, enable=False)
+    def __init__(self):
+        BotBase.__init__(self, self.BotCmd, self.__class__.__name__, enable=False)
 
 
     # Things that need to be intialized or run after initialization. This is primarily
@@ -49,9 +52,8 @@ class TestBot(BotBase):
     class BotCmd(Cmd):
 
         # obj is what the commands interface with
-        def __init__(self, logger, obj):
-            self.logger = logger
-            self.obj    = obj
+        def __init__(self, obj: BotBase):
+            Cmd.__init__(self, obj)
 
 
         # This is one of the four function that are required to be defined in the derived class and serves to provide

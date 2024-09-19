@@ -1,18 +1,19 @@
 import math
-import tinydb
 import random
 import datetime
 
 from dateutil.parser import parse
 from dateutil.relativedelta import relativedelta
 
+from core.BotConfig import BotConfig
 from core.BotBase import BotBase
 from core.BotException import BotException
-from core.console_framework import Cmd
+from core.SessionMgrV2 import SessionMgrV2
+from core.parser.Post import Post
 
-from core.parser import Topic, Post
-from bots.ThreadNecroBotCore.ThreadNecroBotCore import ThreadNecroBotCore
+from api import Cmd
 
+from .ThreadNecroBotCore.ThreadNecroBotCore import ThreadNecroBotCore
 
 
 class ThreadNecroBot(BotBase, ThreadNecroBotCore):
@@ -21,19 +22,19 @@ class ThreadNecroBot(BotBase, ThreadNecroBotCore):
 
     __SUBFORUM_ID = 68
 
-    def __init__(self, botcore):
-        BotBase.__init__(self, botcore, self.BotCmd, self.__class__.__name__, enable=True)
+    def __init__(self):
+        BotBase.__init__(self, self.BotCmd, self.__class__.__name__, enable=True)
 
-        is_dbg = self.get_cfg('Core', 'is_dbg')
+        is_dbg = BotConfig['Core']['is_dbg']
 
-        self.topic_id    = self.get_cfg('ThreadNecroBot', 'topic_id_dbg') if is_dbg else self.get_cfg('ThreadNecroBot', 'topic_id')
-        self.main_post   = self.get_cfg('ThreadNecroBot', 'post_id_dbg')  if is_dbg else self.get_cfg('ThreadNecroBot', 'post_id')
-        self.banned      = set()    # \TODO: this needs to go into db
+        self.topic_id  = BotConfig['ThreadNecroBot']['topic_id_dbg'] if is_dbg else BotConfig['ThreadNecroBot']['topic_id']
+        self.main_post = BotConfig['ThreadNecroBot']['post_id_dbg']  if is_dbg else BotConfig['ThreadNecroBot']['post_id']
+        self.banned    = set()    # \TODO: this needs to go into db
 
 
     def post_init(self):
-        is_dbg  = self.get_cfg('Core', 'is_dbg')
-        db_path = self.get_cfg('Core', 'db_path_dbg') if is_dbg else self.get_cfg('Core', 'db_path')
+        is_dbg  = BotConfig['Core']['is_dbg']
+        db_path = BotConfig['Core']['db_path_dbg'] if is_dbg else BotConfig['Core']['db_path']
         ThreadNecroBotCore.__init__(self, db_path)
 
 
@@ -141,7 +142,7 @@ class ThreadNecroBot(BotBase, ThreadNecroBotCore):
             log_monthly_text,
             monthly_winners_text
         )
-        self.edit_post(self.main_post, post_content, append=False)
+        SessionMgrV2.edit_post(self.main_post, post_content, append=False)
 
 
     def calculate_score_gained_prev_user(self, prev_post_info: dict, data: dict):
@@ -218,7 +219,7 @@ class ThreadNecroBot(BotBase, ThreadNecroBotCore):
         monthly_winners_list = self.get_monthly_winners_list()
 
         if not monthly_winners_list:
-            starting_date = self.get_post(self.main_post).date.replace(tzinfo=None)
+            starting_date = SessionMgrV2.get_post(self.main_post).date.replace(tzinfo=None)
             next_date     = starting_date + relativedelta(months=1)
 
             current_delta = current_date - starting_date
@@ -270,7 +271,7 @@ class ThreadNecroBot(BotBase, ThreadNecroBotCore):
         log_timestamp = None
         if self.is_multi_post(prev_post_info, data):
             log_timestamp = ThreadNecroBotCore.LOG_TIMESTAMP_MULTI
-        if self.is_deleted_post(prev_post_info, data):
+        elif self.is_deleted_post(prev_post_info, data):
             log_timestamp = ThreadNecroBotCore.LOG_TIMESTAMP_DELET
 
         data = {
@@ -519,9 +520,9 @@ class ThreadNecroBot(BotBase, ThreadNecroBotCore):
 
     class BotCmd(Cmd):
 
-        def __init__(self, logger, obj: "ThreadNecroBot"):
-            self.logger = logger
-            self.obj    = obj
+        def __init__(self, obj: "ThreadNecroBot"):
+            Cmd.__init__(self, obj)
+            self.obj: "ThreadNecroBot"
 
 
         def get_bot_moderators(self):

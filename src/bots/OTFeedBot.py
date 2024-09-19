@@ -1,19 +1,22 @@
-from typing import Union
-
 import requests
 import time
 import logging
+import warnings
 
-from core import BotBase
-from core import Cmd
-from core import DiscordClient
-from core import Topic, Post
+from core.BotConfig import BotConfig
+from core.BotBase import BotBase
+from core.DiscordClient import DiscordClient
+from core.parser.Post import Post
+
+from api import Cmd
 
 
 class OTFeedBot(BotBase):
 
-    def __init__(self, botcore):
-        BotBase.__init__(self, botcore, self.BotCmd, self.__class__.__name__, enable = True)
+    def __init__(self):
+        BotBase.__init__(self, self.BotCmd, self.__class__.__name__, enable = True)
+        self.__handle_rate = BotConfig['Core']['rate_post_min']
+        self.__pending_count = 0
 
 
     def post_init(self):
@@ -49,32 +52,36 @@ class OTFeedBot(BotBase):
             'contents'       : post.content_markdown
         }
 
-        self.__send_data(self.logger, data)
+        self.__send_data(data)
 
 
-    def __send_data(self, logger: logging.Logger, data: "dict[str, str]"):
-        handle_rate = self.get_cfg('Core', 'rate_post_min')
+    def __send_data(self, data: "dict[str, str]"):
+        self.__pending_count += 1
+        if self.__pending_count > 10:
+            warnings.warn(f'Too many pending requests {self.__pending_count}!')
+
+        handle_rate = self.__handle_rate
 
         while True:
-            discord_bot_port = self.get_cfg('ForumFeedBot', 'discord_bot_port')
             try:
-                DiscordClient.request(discord_bot_port, '/osu/post', data)
+                DiscordClient.request('/osu/post', data)
                 break
             except (requests.exceptions.Timeout, requests.exceptions.ConnectionError):
-                logger.warn(f'No Discord feed server reply! Retrying in {handle_rate} second(s)...')
+                self.logger.warning(f'No Discord feed server reply! Retrying in {handle_rate} second(s) (pending count: {self.__pending_count})...')
                 time.sleep(handle_rate)
 
                 # 1 hour max
                 handle_rate = min(3600, handle_rate + 10)
                 continue
 
+        self.__pending_count -= 1
+
 
     class BotCmd(Cmd):
 
         # obj is what the commands interface with
-        def __init__(self, logger, obj):
-            self.logger = logger
-            self.obj    = obj
+        def __init__(self, obj):
+            Cmd.__init__(self, obj)
 
 
         # This is one of the four function that are required to be defined in the derived class and serves to provide

@@ -4,6 +4,7 @@ import json
 import requests
 from bs4 import BeautifulSoup
 
+from .BotConfig import BotConfig
 from .SessionMgrBase import SessionMgrBase
 from .BotException import BotException
 
@@ -17,6 +18,18 @@ class SessionMgrV1(SessionMgrBase):
         This means web info can be read, but the posts/forums can't be edited
     """
 
+    __instance = None
+
+    def __new__(cls):
+        """
+        Singleton
+        """
+        if not cls.__instance:
+            cls.__instance = super().__new__(cls)
+
+        return cls.__instance
+
+
     def __init__(self):
         SessionMgrBase.__init__(self)
         self.__logged_in = False
@@ -26,19 +39,11 @@ class SessionMgrV1(SessionMgrBase):
         self.__logged_in = False
 
 
-    def login(self, username: str, password: str, /):
+    def login(self):
         """
         Uses user credentials to log into osu!web just like a normal user would
 
         NOTE: This no longer works after captchas were added to the login page
-
-        Parameters
-        ----------
-        username : str
-            User's username
-
-        password : str
-            User's password
         """
         if self.__logged_in:
             return
@@ -52,7 +57,11 @@ class SessionMgrV1(SessionMgrBase):
             root = BeautifulSoup(response.text, 'lxml')
             token = root.find('input', {'name' : '_token'})['value']
 
-            login_data = { '_token' : token, 'username': username, 'password' : password }
+            login_data = {
+                '_token'   : token,
+                'username' : BotConfig['Core']['osuweb_username'],
+                'password' : BotConfig['Core']['osuweb_password']
+            }
             headers = {
                 'User-Agent' : 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
                 'Referer'    : 'https://osu.ppy.sh/home',
@@ -69,8 +78,10 @@ class SessionMgrV1(SessionMgrBase):
                     self._logger.warning('Too many login requests; Taking a 5 min nap . . . ')
                     time.sleep(5*60)  # Too many requests; Take 5 min nap
                     continue
+
                 if response.status_code == 403:
                     raise BotException(self._logger, 'Invalid login. Cannot continue!')
+
                 if response.status_code == 422:
                     raise BotException(self._logger, 'Invalid login. Fill in `web_username` and `web_password` in config.yaml')
                 else:
@@ -107,7 +118,25 @@ class SessionMgrV1(SessionMgrBase):
             time.sleep(5)  # Check every minute until responded to email
 
 
-    def get_post_bbcode(self, post_id: int | str):
+    def get_post_bbcode(self, post_id: int | str) -> str:
+        """
+        Retrieves the bbcode of a post on the osu! forums.
+
+        Parameters
+        ----------
+        post_id : int | str
+            The post id to retrieve the bbcode from.
+
+        Returns
+        -------
+        str
+            The bbcode content of the post.
+
+        Raises
+        ------
+        BotException
+            If the bot is not logged in or if there was an error while retrieving the bbcode.
+        """
         if not self.__logged_in:
             raise BotException(self._logger, 'Must be logged in first')
 
@@ -126,7 +155,24 @@ class SessionMgrV1(SessionMgrBase):
         return bbcode
 
 
-    def edit_post(self, post_id: int | str, new_content: str, append: bool = False):
+    def edit_post(self, post_id: int | str, new_content: str, append: bool = False) -> None:
+        """
+        Edits a post on the osu! forums.
+
+        Parameters
+        ----------
+        post_id : int | str
+            The post id to edit.
+        new_content : str
+            The new bbcode content to replace the old one with.
+        append : bool, optional
+            Whether to append the new content to the old one, by default False.
+
+        Raises
+        ------
+        BotException
+            If the bot is not logged in or if there was an error while editing the post.
+        """
         if not self.__logged_in:
             raise BotException(self._logger, 'Must be logged in first')
 
@@ -152,3 +198,6 @@ class SessionMgrV1(SessionMgrBase):
         except Exception as e:
             msg = f'Unable to edit post id: {post_id}; {e}'
             raise BotException(self._logger, msg) from e
+
+
+SessionMgrV1 = SessionMgrV1()

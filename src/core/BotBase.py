@@ -1,25 +1,31 @@
 import logging
-import requests
 
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 if TYPE_CHECKING:
-    from .console_framework import Cmd
-    from .ForumMonitor import ForumMonitor
-    from .parser import Post, Topic
+    from api import Cmd
+    from .parser import Post
 
 
 class BotBase:
 
-    def __init__(self, core: "ForumMonitor", cmd: "Cmd", name: str, enable: bool):
-        self.logger    = logging.getLogger(f'bots/{name}')
-        self.__core    = core
+    def __init__(self, cmd: "type[Cmd]", name: str, enable: bool):
+        self.logger    = logging.getLogger(f'bots.{name}')
         self.__enable  = enable
         self.__name    = name
-        self.__bot_cmd = cmd(self.logger, self)
+        self.__bot_cmd = cmd(self)
 
 
     def post_init(self):
         raise NotImplementedError()
+
+    @property
+    def cmd(self) -> "Cmd":
+        return self.__bot_cmd
+
+
+    @property
+    def name(self) -> str:
+        return self.__name
 
 
     def enable(self):
@@ -30,11 +36,20 @@ class BotBase:
         self.__enable = False
 
 
+    @property
     def is_enabled(self) -> bool:
         return self.__enable
 
 
     def event(self, forum_data: "Post"):
+        """
+        To be called for each new post
+
+        Parameters
+        ----------
+        forum_data : Post
+            The `Post` object to process.
+        """
         if not self.__enable:
             return
 
@@ -48,35 +63,43 @@ class BotBase:
 
 
     def filter_data(self, forum_data: "Post") -> bool:
+        """
+        Bot filter criteria. By default, it doesn't filter anything.
+        Reimplement this method if it's desired to filter posts.
+
+        Not meant to be used publically.
+
+        Parameters
+        ----------
+        forum_data : Post
+            The `Post` object to filter.
+
+        Returns
+        -------
+        bool
+            Whether the `Post` object should be filtered or not.
+        """
         return True
 
 
-    # process_data is meant to be used by the bot to do whatever it wants with the data it gets
-    def process_data(self, forum_data: "Post"):
+    def process_data(self, forum_data: "Post") -> None:
+        """
+        Processes the given forum data; used by the bot module to process
+        data. This method should be overridden in a child class to do
+        something with the forum data.
+
+        Not meant to be used publically.
+
+        Parameters
+        ----------
+        forum_data : Post
+            The `Post` object to process.
+
+        Raises
+        ------
+        NotImplementedError
+            If this method is not implemented in the child class.
+        """
         msg = 'process_data method not implemented'
         self.logger.error(msg)
         raise NotImplementedError(msg)
-
-
-    def get_cfg(self, src: str, key: str):
-        return self.__core.get_cfg(src, key)
-
-
-    def get_name(self) -> str:
-        return self.__name
-
-
-    def edit_post(self, post_id: int | str, new_content: str, append: bool = False):
-        self.__core.edit_post(post_id, new_content, append)
-
-
-    def get_post(self, post_id: int | str, page: requests.Response | type[None] = None) -> "Post":
-        self.__core.get_post(post_id, page)
-
-
-    def get_prev_post(self, ref_post: "Post") -> "Optional[Post]":
-        self.__core.get_prev_post(ref_post)
-
-
-    def get_next_post(self, ref_post: "Post") -> "Optional[Post]":
-        self.__core.get_next_post(ref_post)

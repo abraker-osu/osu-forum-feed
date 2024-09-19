@@ -2,8 +2,9 @@ import socket
 import ossapi
 import requests_oauthlib
 
+from .BotConfig import BotConfig
 from .SessionMgrBase import SessionMgrBase
-from .DicordClient import DiscordClient
+from .DiscordClient import DiscordClient
 from .BotException import BotException
 
 
@@ -191,31 +192,38 @@ class OssapiCustom(ossapi.Ossapi):
 
 class SessionMgrV2(SessionMgrBase):
 
+    __instance = None
+
+    def __new__(cls):
+        """
+        Singleton
+        """
+        if not cls.__instance:
+            cls.__instance = super().__new__(cls)
+            cls.__osu_apiv2 = None
+
+        return cls.__instance
+
+
     def __init__(self):
         SessionMgrBase.__init__(self)
-        self.__osu_apiv2 = None
 
 
-    def login(self,
-        client_id:          int,
-        client_secret:      str,
-
-        token_directory:    str | type[None] = None,
-        discord_bot_port:   str | type[None] = None,
-    ):
-        if not isinstance(self.__osu_apiv2, type(None)):
+    def login(self):
+        if isinstance(self.__osu_apiv2, OssapiCustom):
             return
 
         self._logger.info('Authorizing osu!api v2...')
 
         self.__osu_apiv2 = OssapiCustom(
-            client_id, client_secret,
+            BotConfig['Core']['osuapiv2_client_id'],
+            BotConfig['Core']['osuapiv2_client_secret'],
             redirect_uri       = 'http://localhost:8000',
             scopes             = [ ossapi.Scope.FORUM_WRITE ],
             grant              = 'authorization',
 
-            token_directory  = token_directory,
-            discord_bot_port = discord_bot_port,
+            token_directory  = BotConfig['Core']['osuapiv2_token_dir'],
+            discord_bot_port = BotConfig['Core']['discord_bot_port'],
         )
 
 
@@ -227,15 +235,18 @@ class SessionMgrV2(SessionMgrBase):
 
     def edit_post(self, post_id: int | str, new_content: str, append: bool = False):
         post_id = int(post_id)
-
-        if isinstance(self.__osu_apiv2, type(None)):
-            raise BotException(self._logger, 'Must be logged in first')
+        self.login()
 
         if append:
             bbcode = self.get_post_bbcode(post_id)
             bbcode += new_content
 
+        # [2024.09.15] TODO: If client grant expires, this will throw an error
+        #   this should be handled via a login and a retry
         try: self.__osu_apiv2.forum_edit_post(post_id, new_content)
         except Exception as e:
             msg = f'Unable to edit post id: {post_id}; {e}'
             raise BotException(self._logger, msg) from e
+
+
+SessionMgrV2 = SessionMgrV2()

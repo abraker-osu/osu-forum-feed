@@ -1,21 +1,23 @@
-from typing import Optional, Union
+from typing import Optional
 
 import time
 import logging
 import requests
+import warnings
 
 import tinydb
 from tinydb.table import Document
 
 from threading import Thread
 
+from .BotConfig import BotConfig
 from .BotCore import BotCore
-from .console_framework import ApiServer
+from .DiscordClient import DiscordClient
 from .SessionMgrV2 import SessionMgrV2
 from .BotException import BotException
 
 
-class ForumMonitor(BotCore, SessionMgrV2):
+class ForumMonitor(BotCore):
 
     NEW_POST = 1
 
@@ -25,24 +27,25 @@ class ForumMonitor(BotCore, SessionMgrV2):
 
     __DB_ID_FORUM_MONITOR = 0
 
-    def __init__(self, config: dict, login: bool = True):
+    __instance = None
+
+    def __new__(cls):
+        """
+        Singleton
+        """
+        if not cls.__instance:
+            cls.__instance = super().__new__(cls)
+
+        return cls.__instance
+
+
+    def __init__(self):
         self.__logger = logging.getLogger(__class__.__name__)
         self.__logger.info('ForumMonitor initializing...')
 
-        BotCore.__init__(self, config)
-        SessionMgrV2.__init__(self)
-        ApiServer.init(self.get_cfg('Core', 'api_port'))
+        BotCore.__init__(self)
 
-        if login:
-            self.login(
-                self.get_cfg('Core', 'osuapiv2_client_id'),
-                self.get_cfg('Core', 'osuapiv2_client_secret'),
-                self.get_cfg('Core', 'osuapiv2_token_dir'),
-                self.get_cfg('Core', 'discord_bot_port')
-            )
-
-        self.__post_rate = 5.0
-
+        self.__post_rate      = 5.0
         self.__latest_post_id = None
         self.__latest_post_id = self.__retrieve_latest_post()
         self.__check_post_ids = [ self.__latest_post_id ]
@@ -62,6 +65,8 @@ class ForumMonitor(BotCore, SessionMgrV2):
 
     def check_db(self):
         """
+        Overrides `BotCore.check_db`
+
         fmt DB:
             {
                 "0": {
@@ -74,7 +79,7 @@ class ForumMonitor(BotCore, SessionMgrV2):
         """
         self.__logger.info('Checking db...')
 
-        with tinydb.TinyDB(f'{self.db_path}/{self.__DB_FILE_BOTCORE}') as db:
+        with tinydb.TinyDB(f'{self._db_path}/{self.__DB_FILE_BOTCORE}') as db:
             table = db.table(self.__TABLE_BOTCORE)
 
             entry = table.get(doc_id=self.__DB_ID_FORUM_MONITOR)
@@ -90,13 +95,21 @@ class ForumMonitor(BotCore, SessionMgrV2):
             self.__logger.info('Forum monitor db empty; Building new one...')
             table.insert(Document(
                 {
-                    'latest_post_id' : self.get_cfg('Core', 'latest_post_id'),
+                    'latest_post_id' : BotConfig['Core']['latest_post_id'],
                 },
                 ForumMonitor.__DB_ID_FORUM_MONITOR
             ))
 
 
     def get_latest_post(self) -> int:
+        """
+        Retrieves the latest post id from db or from memory if already set.
+
+        Returns
+        -------
+        int
+            The latest post id.
+        """
         if not self.__latest_post_id:
             self.__logger.debug('Latest post id is not set; retrieving from db...')
             return self.__retrieve_latest_post()
@@ -116,7 +129,7 @@ class ForumMonitor(BotCore, SessionMgrV2):
                 }
             }
         """
-        with tinydb.TinyDB(f'{self.db_path}/{self.__DB_FILE_BOTCORE}') as db:
+        with tinydb.TinyDB(f'{self._db_path}/{self.__DB_FILE_BOTCORE}') as db:
             table = db.table(self.__TABLE_BOTCORE)
 
             entry = table.get(doc_id=self.__DB_ID_FORUM_MONITOR)
@@ -131,12 +144,19 @@ class ForumMonitor(BotCore, SessionMgrV2):
 
     def set_latest_post(self, post_id: int):
         """
-        db format:
-        {
-             "0": { "latest_post_id": (post_id: int) }
-        }
+        Sets the latest post id in the db and memory.
+
+        fmt DB:
+            {
+                "0": { "latest_post_id": (post_id: int) }
+            }
+
+        Parameters
+        ----------
+        post_id : int
+            The id of the post to set the latest post id to.
         """
-        with tinydb.TinyDB(f'{self.db_path}/{self.__DB_FILE_BOTCORE}') as db:
+        with tinydb.TinyDB(f'{self._db_path}/{self.__DB_FILE_BOTCORE}') as db:
             table = db.table(self.__TABLE_BOTCORE)
             table.upsert(Document(
                 {
@@ -188,13 +208,13 @@ class ForumMonitor(BotCore, SessionMgrV2):
         self.__monitor_statuses[event_type] = status
 
 
-    def fetch_post(self, check_post_id: Union[int, str]) -> "tuple[Optional[str], Optional[requests.Response]]":
+    def fetch_post(self, check_post_id: int | str) -> "tuple[Optional[str], Optional[requests.Response]]":
         # Request website data
         post_url = f'https://osu.ppy.sh/community/forums/posts/{check_post_id}'
         self.__logger.debug(f'Checking post id: {check_post_id}')
 
         # Try to get web data. If we can't due to server error, then abort and retry after some time
-        try: page = self.fetch_web_data(post_url)
+        try: page = SessionMgrV2.fetch_web_data(post_url)
         except BotException:
             return None, None
 
@@ -213,32 +233,50 @@ class ForumMonitor(BotCore, SessionMgrV2):
         # \FIXME: Sudden internet disconnect creates cascade errors across everything. Need to keep on retrying
         # \TODO: See if basing the speed on how far back the threads are will work. Would be a function of time between now and the read thread/post
         while True:
-            try:
-                time.sleep(1)  # sleep for 1 second
-                if self.runtime_quit:
-                    break
+            with warnings.catch_warnings(record=True) as w:
+                try:
+                    time.sleep(1)  # sleep for 1 second
+                    if self.runtime_quit:
+                        break
 
-                if self.get_enable(ForumMonitor.NEW_POST) == True:
-                    if not warned_post_check_timeout:
-                        if time.time() - last_post_check > timeout:
-                            self.__logger.warn('Post checking has timed out! (this means one of the modules halted)')
-                            warned_post_check_timeout = True
-
-                if not new_post_task or not new_post_task.is_alive():
-                    self.__set_status(ForumMonitor.NEW_POST, False)
                     if self.get_enable(ForumMonitor.NEW_POST) == True:
-                        new_post_task = Thread(target=self.__check_new_post, args=[])
-                        new_post_task.start()
+                        if not warned_post_check_timeout:
+                            if time.time() - last_post_check > timeout:
+                                self.__logger.warning('Post checking has timed out! (this means one of the modules halted)')
+                                warned_post_check_timeout = True
 
-                        last_post_check = time.time()
-                        self.__set_status(ForumMonitor.NEW_POST, True)
+                    if not new_post_task or not new_post_task.is_alive():
+                        self.__set_status(ForumMonitor.NEW_POST, False)
+                        if self.get_enable(ForumMonitor.NEW_POST) == True:
+                            new_post_task = Thread(target=self.__check_new_post, args=[])
+                            new_post_task.start()
 
-            except KeyboardInterrupt:
-                self.__logger.info(f'Exiting main loop.')
-                self.runtime_quit = True
-            except Exception as e:
-                self.__logger.exception(f'Exception in main loop!')
-                raise e
+                            last_post_check = time.time()
+                            self.__set_status(ForumMonitor.NEW_POST, True)
+
+                except KeyboardInterrupt:
+                    self.__logger.info(f'Exiting main loop.')
+                    self.runtime_quit = True
+                except Exception as e:
+                    self.__logger.exception(f'Exception in main loop!')
+                    warnings.warn(e)
+                    self.runtime_quit = True
+
+            # Report warnings to admin via Discord
+            for warning in w:
+                file = warning.filename.split('\\')[-1]
+                err = f'  {file}, line {warning.lineno}'
+
+                DiscordClient.request('admin/post', {
+                    'src'      : 'forumbot',
+                    'contents' :
+                        '[WARNING]\n'
+                        f'**{warning.message}**\n'
+                        f'{err}'
+                })
+
+            w.clear()
+
 
         if new_post_task:
             new_post_task.join()
@@ -261,22 +299,19 @@ class ForumMonitor(BotCore, SessionMgrV2):
                 if page.status_code == 200:
                     self.handle_new_post(check_post_ids, i, page)
                     return
-            except BotException as e:
-                self.__logger.error(f'{e}\nPost id {check_post_ids[i]}'); break
-            except RuntimeError as e:
-                self.__logger.error(f'{e}\nPost id {check_post_ids[i]}'); break
             except KeyboardInterrupt:
                 self.runtime_quit = True; break
-            except Exception as e:
-                self.__logger.exception(f'{e}\nPost id {check_post_ids[i]}'); break
+            except BotException as e:
+                self.__logger.error(f'{e}\nPost id {check_post_ids[i]}')
+                raise
 
             self.__logger.debug(f'Post ID: {check_post_ids[i]}    Status: {page.status_code}')
 
             # Too many requests -> start over
             if page.status_code == 429:
-                if self.__post_rate < self.get_cfg('Core', 'rate_post_max'):
+                if self.__post_rate < BotConfig['Core']['rate_post_max']:
                     self.__post_rate += 0.1
-                    if self.__post_rate >= self.get_cfg('Core', 'rate_post_warn'):
+                    if self.__post_rate >= BotConfig['Core']['rate_post_warn']:
                         self.__logger.warning('Forum monitor post rate has reached over 5 sec!')
                 return
 
@@ -309,13 +344,16 @@ class ForumMonitor(BotCore, SessionMgrV2):
                 break
 
         # Lower rate since there is a successful request
-        self.__post_rate = max(self.get_cfg('Core', 'rate_post_min'), self.__post_rate - 0.1)
+        self.__post_rate = max(BotConfig['Core']['rate_post_min'], self.__post_rate - 0.1)
 
         # That is our latest post id and no need to check for any other but the next one
         self.set_latest_post(check_post_ids[i] + 1)
-        post = self.get_post(check_post_ids[i], page)
+        post = SessionMgrV2.get_post(check_post_ids[i], page)
 
         self.__logger.debug(f'Latest post ID: {check_post_ids[i]}\tDate: {post.date}')
 
         # Send off the post data to the bots
         self.forum_driver(post)
+
+
+ForumMonitor = ForumMonitor()

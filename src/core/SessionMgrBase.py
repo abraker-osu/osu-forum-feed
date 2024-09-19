@@ -19,25 +19,11 @@ class SessionMgrBase():
         self.__last_status_code = None
 
 
-    def login(self,
-        id_username:  str,
-        key_password: str,
-        # These are for compatibility between SessionMgr v1 and v2
-        token_directory:  str | type[None] = None,
-        discord_bot_port: str | type[None] = None
-    ):
+    def login(self):
         """
         Uses user credentials to log into osu!web just like a normal user would
 
         NOTE: This no longer works after captchas were added to the login page
-
-        Parameters
-        ----------
-        id_username : str
-            User's username or client id
-
-        key_password : str
-            User's password or client secret
         """
         raise NotImplementedError
 
@@ -188,13 +174,22 @@ class SessionMgrBase():
 
 
     def get_next_post(self, ref_post: Post) -> Optional[Post]:
+        """
+        Returns the post after the given reference post in the topic.
+
+        Parameters
+        ----------
+        ref_post:  Pose
+          The post to find the next post of.
+
+        :return: The post that comes after the given post, or None if there is no next post.
+        """
         posts = ref_post.topic.posts
 
         for post in posts:
             if int(post.id) > int(ref_post.id):
-                return post  # Return the first post with a greater post id than the given one
+                return post
 
-        # This is the last post
         return None
 
 

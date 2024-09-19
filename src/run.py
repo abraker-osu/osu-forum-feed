@@ -5,14 +5,12 @@ if sys.version_info < (3, 10):
     logging.critical('Python 3.10 or later is required!')
     sys.exit(1)
 
-import logging
 import traceback
 import os
 import pathlib
 
-import yaml
-
-from core import ForumMonitor
+from core.ForumMonitor import ForumMonitor
+from core.BotConfig import BotConfig
 
 
 excepthook_old = sys.excepthook
@@ -26,13 +24,10 @@ sys.excepthook = exception_hook
 
 
 if __name__ == '__main__':
-    with open('config.yaml', 'r') as f:
-        config = yaml.safe_load(f)
-
     root = os.path.abspath(os.getcwd())
-    log_path      = config['Core']['log_path']      = pathlib.Path(f'{root}/{config["Core"]["log_path"]}')
-    bots_log_path = config['Core']['bots_log_path'] = pathlib.Path(f'{root}/{config["Core"]["bots_log_path"]}')
-    bots_path     = config['Core']['bots_path']     = pathlib.Path(f'{root}/{config["Core"]["bots_path"]}')
+    log_path      = BotConfig['Core']['log_path']      = pathlib.Path(f'{root}/{BotConfig["Core"]["log_path"]}')
+    bots_log_path = BotConfig['Core']['bots_log_path'] = pathlib.Path(f'{root}/{BotConfig["Core"]["bots_log_path"]}')
+    bots_path     = BotConfig['Core']['bots_path']     = pathlib.Path(f'{root}/{BotConfig["Core"]["bots_path"]}')
 
     if not os.path.exists(log_path):
         os.makedirs(log_path)
@@ -41,12 +36,8 @@ if __name__ == '__main__':
         os.makedirs(bots_log_path)
 
     if not os.path.exists(bots_path):
-        print('Fatal Error: Bot directory not found!')
+        logging.critical('Fatal Error: Bot directory not found!')
         exit(404)
 
-    logging.setLoggerClass(LoggerClass(log_path, config['Core']['is_dbg']))
-
     # \TODO: Consider this: http://www.bbarrows.com/blog/2012/09/24/implementing-exception-logging-in-python/
-
-    forum_monitor = ForumMonitor(config)
-    forum_monitor.run()
+    ForumMonitor.run()

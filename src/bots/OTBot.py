@@ -1,25 +1,28 @@
-from typing import Union
+from core.SessionMgrV2 import SessionMgrV2
+from core.BotBase import BotBase
 
-from core import BotBase
-from core import Cmd
-from core import Post, Topic
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from core.parser.Post import Post
+
+from api import Cmd
 
 
 class OTBot(BotBase):
 
-    def __init__(self, core):
-        BotBase.__init__(self, core, self.BotCmd, self.__class__.__name__, enable = True)
+    def __init__(self):
+        BotBase.__init__(self, OTBot.BotCmd, self.__class__.__name__, enable = True)
 
 
     def post_init(self):
         pass
 
 
-    def filter_data(self, post: Post):
+    def filter_data(self, post: "Post"):
         return int(post.topic.subforum_id) == 52
 
 
-    def process_data(self, post: Post):
+    def process_data(self, post: "Post"):
         self.logger.info(f'Found OT post by: {post.creator.name} in thread: {post.topic.name}')
 
         data = {}
@@ -33,15 +36,13 @@ class OTBot(BotBase):
             return
 
         self.logger.info('Writing post count to post...')
-        self.edit_post(str(data['post_id']), '\n\n edit: ' + str(data['post_count']), append=True)
+        SessionMgrV2.edit_post(str(data['post_id']), '\n\n edit: ' + str(data['post_count']), append=True)
 
 
     class BotCmd(Cmd):
 
-        def __init__(self, logger, obj):
-            self.logger = logger
-            self.obj    = obj
-
+        def __init__(self, obj: BotBase):
+            Cmd.__init__(self, obj)
 
         def get_bot_moderators(self):
             return []
