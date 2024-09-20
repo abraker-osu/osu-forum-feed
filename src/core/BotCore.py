@@ -1,13 +1,14 @@
 import os
 import importlib
 import logging
+import datetime
 
 from .BotException import BotException
 from .BotConfig import BotConfig
 from .BotBase import BotBase
 from .parser import Post
 
-from api import ApiServer
+from api.ApiServer import ApiServer
 
 
 class BotCore():
@@ -20,6 +21,7 @@ class BotCore():
         self.__logger = logging.getLogger(__class__.__name__)
         self.__logger.info('BotCore initializing...')
 
+        self.__time_start = datetime.datetime.now()
         self.runtime_quit = False
 
         # Initialize the botcore database
@@ -62,7 +64,7 @@ class BotCore():
                     f'Cannot load module for bot: {module}\n'
                     f'{e}'
                 )
-                raise BotException(self.__logger, msg)
+                raise BotException(msg)
 
         self.__logger.info('Running bot post initialization routines.')
 
@@ -77,7 +79,7 @@ class BotCore():
                     f'Cannot run post initialization for "{name}"; Function bot.post_init() failed!\n'
                     f'{e}'
                 )
-                raise BotException(self.__logger, msg)
+                raise BotException(msg)
 
         # Now that all bots are initialized, initialize the API server
         ApiServer.init(self.__bots.values())
@@ -133,3 +135,6 @@ class BotCore():
             If function is not implemented by subclasses.
         """
         raise NotImplementedError('This method must be implemented by subclasses.')
+
+    def runtime(self) -> datetime.timedelta:
+        return datetime.datetime.now() - self.__time_start

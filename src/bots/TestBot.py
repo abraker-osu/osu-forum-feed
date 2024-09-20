@@ -3,9 +3,9 @@ from core.parser.Post import Post
 
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
-    from core import BotCore
+    from core.BotCore import BotCore
 
-from api import Cmd
+from api.Cmd import Cmd
 
 
 # This to be used as a template for other bots with basic explanatons what the important parts do
@@ -58,7 +58,7 @@ class TestBot(BotBase):
 
         # This is one of the four function that are required to be defined in the derived class and serves to provide
         # a list of users who are allowed to use commands up to Cmd.PERMISSION_MOD level
-        def get_bot_moderators(self):
+        def get_bot_moderators(self) -> list:
             return []
 
 
@@ -66,7 +66,7 @@ class TestBot(BotBase):
         # whether the user who requested the command (requestor_id) can use the command based on whatever conditions
         # specified in args. This might be the user id they are trying to access, their requestor id's specific
         # status, and so on.
-        def validate_special_perm(self, requestor_id: int, args: tuple):
+        def validate_special_perm(self, requestor_id: int, access_id: int) -> bool:
             return False
 
 
@@ -79,7 +79,7 @@ class TestBot(BotBase):
         info = 'Prints the about text for TestBot',
         args = {
         })
-        def cmd_about(self, cmd_key: "tuple[int, int]"):
+        def cmd_about(self, cmd_key: tuple[int, int]) -> dict:
             # This uses a function defined in the Cmd super class to validate the request. Validation is
             # based on user permission. Note the cmd_key, which is required for any non public permission level.
             # The value for cmd_key is automatically passed on from the Command Processor, so you only need to worry
@@ -99,7 +99,7 @@ class TestBot(BotBase):
         info = 'Prints the help text for TestBot',
         args = {
         })
-        def cmd_help(self, cmd_key: "tuple[int, int]"):
+        def cmd_help(self, cmd_key: tuple[int, int]) -> dict:
             # Validate the request. Note there are the following permission levels:
             #   Cmd.PERMISSION_PUBLIC  - Anyone and their grandmother is allowed to use the command
             #   Cmd.PERMISSION_SPECIAL - Anyone can use the command, but there are certain restrictions on a case-by-case basis, which are evaluated by validate_special_perm

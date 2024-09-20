@@ -69,7 +69,7 @@ class SessionMgrV1(SessionMgrBase):
 
             try: response = self.__session.post('https://osu.ppy.sh/session', data=login_data, headers=headers)
             except Exception:
-                raise BotException(self._logger, 'Unable to log in')
+                raise BotException('Unable to log in')
 
             self.__validate_response(response)
 
@@ -80,19 +80,19 @@ class SessionMgrV1(SessionMgrBase):
                     continue
 
                 if response.status_code == 403:
-                    raise BotException(self._logger, 'Invalid login. Cannot continue!')
+                    raise BotException('Invalid login. Cannot continue!')
 
                 if response.status_code == 422:
-                    raise BotException(self._logger, 'Invalid login. Fill in `web_username` and `web_password` in config.yaml')
+                    raise BotException('Invalid login. Fill in `web_username` and `web_password` in config.yaml')
                 else:
-                    raise BotException(self._logger, f'Unable to log in; Status code: {response.status_code}')
+                    raise BotException(f'Unable to log in; Status code: {response.status_code}')
 
             break
 
         # Validate log in
         response = self.fetch_web_data('https://osu.ppy.sh')
         if not 'XSRF-TOKEN' in response.cookies:
-            raise BotException(self._logger, f'Unable to log in; Cookies indicate login failed!')
+            raise BotException(f'Unable to log in; Cookies indicate login failed!')
 
         self.__check_account_verification(response)
         self.__logged_in = True
@@ -138,19 +138,19 @@ class SessionMgrV1(SessionMgrBase):
             If the bot is not logged in or if there was an error while retrieving the bbcode.
         """
         if not self.__logged_in:
-            raise BotException(self._logger, 'Must be logged in first')
+            raise BotException('Must be logged in first')
 
         response = self.fetch_web_data(f'https://osu.ppy.sh/community/forums/posts/{post_id}/edit')
         if response.status_code == 403:
             msg = f'Unable to retrieve bbcode for posts that are not yours; post_id: {post_id}'
-            raise BotException(self._logger, msg)
+            raise BotException(msg)
 
         root = BeautifulSoup(response.text, "lxml")
 
         try: bbcode = root.find('textarea').renderContents().decode('utf-8')
         except Exception as e:
             msg = f'Unable to parse bbcode for post id: {post_id}; {e}\nRoot: {root}'
-            raise BotException(self._logger, msg) from e
+            raise BotException(msg) from e
 
         return bbcode
 
@@ -174,7 +174,7 @@ class SessionMgrV1(SessionMgrBase):
             If the bot is not logged in or if there was an error while editing the post.
         """
         if not self.__logged_in:
-            raise BotException(self._logger, 'Must be logged in first')
+            raise BotException('Must be logged in first')
 
         try:
             response = self.fetch_web_data('https://osu.ppy.sh')
@@ -191,13 +191,13 @@ class SessionMgrV1(SessionMgrBase):
                 response = json.loads(response.text)
                 if 'error' in response:
                     msg = f'Unable to edit post id: {response["error"]}'
-                    raise BotException(self._logger, msg)
+                    raise BotException(msg)
             except:
                 pass  # Then it went through ok
 
         except Exception as e:
             msg = f'Unable to edit post id: {post_id}; {e}'
-            raise BotException(self._logger, msg) from e
+            raise BotException(msg) from e
 
 
 SessionMgrV1 = SessionMgrV1()

@@ -1,11 +1,8 @@
-from typing import Optional, Callable, Union
+from typing import Optional, Callable
 import logging
 
 from core.BotConfig import BotConfig
-
-from typing import TYPE_CHECKING
-if TYPE_CHECKING:
-    from core.BotBase import BotBase
+from core.BotBase import BotBase
 
 
 class Cmd():
@@ -19,7 +16,9 @@ class Cmd():
     PERMISSION_MOD     = 2  # Mods roles can use this command + admin
     PERMISSION_ADMIN   = 3  # Only admin is able to use this command
 
-    def __init__(self, obj: "BotBase"):
+    def __init__(self, obj: BotBase):
+        assert isinstance(obj, BotBase)
+
         self.__logger = logging.getLogger(f'{__name__}.{obj.name}')
         self.obj = obj
 
@@ -86,7 +85,7 @@ class Cmd():
 
 
     @staticmethod
-    def arg(var_types: "Union[list[str], str]", is_optional: bool, info: str) -> str:
+    def arg(var_types: list[str] | str, is_optional: bool, info: str) -> str:
         if type(var_types) is not list:
             var_types = [ var_types ]
 
@@ -114,7 +113,7 @@ class Cmd():
             fmt: { 'status' : 0, 'msg' : str }
         """
         if msg == None: return { 'status' : 0 }
-        else:           return { 'status' : 0, 'msg' : msg }
+        else:           return { 'status' : 0, 'msg' : f'```{msg}```' }
 
 
     @staticmethod
@@ -135,7 +134,7 @@ class Cmd():
             fmt: { 'status' : -1, 'msg' : str }
         """
         if msg == None: return { 'status' : -1 }
-        else:           return { 'status' : -1, 'msg' : msg }
+        else:           return { 'status' : -1, 'msg' : f'```ansi\n\x1b[31;20m{msg}\x1b[0m```' }
 
 
     def cmd_about(self) -> Callable:
@@ -193,7 +192,7 @@ class Cmd():
         raise NotImplementedError(msg)
 
 
-    def validate_request(self, cmd_key: "tuple[int, int]", args: tuple = ()):
+    def validate_request(self, cmd_key: tuple[int, int], args: tuple = ()):
         """
         Validates if the requestor has sufficient permissions to execute a command.
 
@@ -245,7 +244,7 @@ class Cmd():
             self.perm = perm
 
 
-        def __call__(self, func: Callable, *args: list, **kwargs: dict):
+        def __call__(self, func: Callable, *args: list, **kwargs: dict) -> dict:
             return { 'perm' : self.perm, 'help' : self.gen_cmd_help, 'exec' : func }
 
 
@@ -254,7 +253,7 @@ class Cmd():
             args = [ ' : '.join(arg) for arg in args ]
 
             msg = self.info
-            if len(args) > 0: msg += '\n\nargs:\n' + '\n\t'.join(args)
+            if len(args) > 0: msg += '\n\nargs:\n  ' + '\n  '.join(args)
             else:             msg += '\n\nargs: None'
 
-            return { 'status' : 0, 'msg' : msg }
+            return { 'status' : 0, 'msg' : f'```{msg}```' }

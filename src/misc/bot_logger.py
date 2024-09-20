@@ -31,7 +31,6 @@ if 'global_loger' not in globals():
             logging.CRITICAL: f'{bold_red}%(levelname)s{reset}  {rgb(200, 50, 50)}%(asctime)s  [ %(name)s ] %(message)s{reset}'
         }
 
-
         def format(self, record: logging.LogRecord) -> str:
             """
             Formatter override

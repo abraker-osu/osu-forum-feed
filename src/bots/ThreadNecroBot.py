@@ -11,7 +11,7 @@ from core.BotException import BotException
 from core.SessionMgrV2 import SessionMgrV2
 from core.parser.Post import Post
 
-from api import Cmd
+from api.Cmd import Cmd
 
 from .ThreadNecroBotCore.ThreadNecroBotCore import ThreadNecroBotCore
 
@@ -551,7 +551,7 @@ class ThreadNecroBot(BotBase, ThreadNecroBotCore):
         info = 'Prints the help text for ThreadNecroBot',
         args = {
         })
-        def cmd_help(self):
+        def cmd_help(self) -> dict:
             return Cmd.ok('To be implemented...')
 
 
@@ -561,7 +561,7 @@ class ThreadNecroBot(BotBase, ThreadNecroBotCore):
         args = {
             'user_name' : Cmd.arg(str, False, 'Name of the user to print the number of point of')
         })
-        def cmd_get_user_points(self, user_name: str):
+        def cmd_get_user_points(self, user_name: str) -> dict:
             """
             fmt DB:
                 "userdata" : {
@@ -584,7 +584,7 @@ class ThreadNecroBot(BotBase, ThreadNecroBotCore):
             'user_name' : Cmd.arg(str,   False, 'Name of the user to add or take points from'),
             'points'    : Cmd.arg(float, False, 'Number of points to add'),
         })
-        def cmd_add_user_points(self, cmd_key: str, user_name: str, points: float) -> dict:
+        def cmd_add_user_points(self, cmd_key: tuple[int, int], user_name: str, points: float) -> dict:
             """
             fmt DB:
                 "userdata" : {
@@ -630,7 +630,7 @@ class ThreadNecroBot(BotBase, ThreadNecroBotCore):
         info = 'Gets the info of the previous post recorded',
         args = {
         })
-        def cmd_get_prev_post_info(self, cmd_key):
+        def cmd_get_prev_post_info(self, cmd_key: tuple[int, int]) -> dict:
             if not self.validate_request(cmd_key):
                 return Cmd.err(f'Insufficient permissions')
 
@@ -643,7 +643,7 @@ class ThreadNecroBot(BotBase, ThreadNecroBotCore):
         args = {
             'user_id' : Cmd.arg(int, False, 'User id')
         })
-        def cmd_ban(self, cmd_key, user_id):
+        def cmd_ban(self, cmd_key: tuple[int, int], user_id: int) -> dict:
             if not self.validate_request(cmd_key):
                 return Cmd.err(f'Insufficient permissions')
 
@@ -663,7 +663,7 @@ class ThreadNecroBot(BotBase, ThreadNecroBotCore):
         info = 'Unbans the user with the given user id from the game',
         args = {
         })
-        def cmd_unban(self, cmd_key, user_id):
+        def cmd_unban(self, cmd_key: tuple[int, int], user_id: int) -> dict:
             if not self.validate_request(cmd_key):
                 return Cmd.err(f'Insufficient permissions')
 
@@ -683,7 +683,7 @@ class ThreadNecroBot(BotBase, ThreadNecroBotCore):
         args = {
             'user_id' : Cmd.arg(int, False, 'User id')
         })
-        def cmd_get_user_rank(self, user_id):
+        def cmd_get_user_rank(self, user_id: int) -> dict:
             rank = self.obj.get_user_rank(user_id)
             if not rank:
                 return Cmd.err('user not found')
@@ -697,5 +697,5 @@ class ThreadNecroBot(BotBase, ThreadNecroBotCore):
         args = {
             'user_id' : Cmd.arg(int, False, 'User id')
         })
-        def cmd_get_banned(self, user_id):
+        def cmd_get_banned(self, user_id: int) -> dict:
             return Cmd.ok(str(self.obj.banned))

@@ -1,7 +1,5 @@
 import requests
 import logging
-import json
-
 
 from .BotConfig import BotConfig
 
@@ -25,12 +23,16 @@ class DiscordClient():
 
     @staticmethod
     def request(route: str, data: dict):
+        """
+        fmt data:
+            {
+                'src':      str
+                'contents': str
+            }
+        """
         self = DiscordClient()
         response = self.__session.post(f'http://127.0.0.1:{self.__port}/{route}', json=data)
 
         # Check if it's HTTP OK
         if response.status_code != 200:
             raise Exception(f'Error {response.status_code}')
-
-        data = json.loads(response.text)
-        self.__logger.debug(data)

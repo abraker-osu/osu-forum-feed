@@ -43,10 +43,10 @@ class SessionMgrBase():
         except (requests.exceptions.ConnectionError, requests.exceptions.Timeout) as e:
             msg = f'Timed out while fetching url: {url}'
             self._logger.error(msg)
-            raise BotException(self._logger, msg) from e
+            raise BotException(msg) from e
         #except requests.exceptions.ChunkedEncodingError as e:
         #    msg = 'Unable to fetch url: ' + str(url) + '\n' + str(e)
-        #    raise BotException(self._logger, msg)
+        #    raise BotException(msg)
         except Exception as e:
             self._logger.exception(f'Unable to fetch url: {url}')
             raise
@@ -64,7 +64,7 @@ class SessionMgrBase():
         if page.text.find("You shouldn&#039;t be here.") != -1:
             msg = f'Cannot access subforum with url {subforum_url}!'
             self._logger.error(msg)
-            raise BotException(self._logger, msg)
+            raise BotException(msg)
 
         # \TODO: Maybe just create thread objects from thread enetries?
         root = BeautifulSoup(page.text, "lxml")
@@ -93,7 +93,7 @@ class SessionMgrBase():
         # Validate to make sure everything matches up as expected
         if not (len(thread_names) == len(thread_authors) == len(thread_lastPost) == len(thread_lastTime)):
             msg = f'Data mismatch; thread_names: {len(thread_names)}   thread_authors: {len(thread_authors)}    thread_lastPost: {len(thread_lastPost)}    thread_lastTime: {len(thread_lastTime)}'
-            raise BotException(self._logger, msg)
+            raise BotException(msg)
 
         # Sanitize data
         thread_names    = [ name.replace('\n', '') for name in thread_names ]
@@ -124,7 +124,7 @@ class SessionMgrBase():
         if page.text.find("You shouldn&#039;t be here.") != -1: msg = f'Cannot access topic with url {thread_url}!'
 
         if msg:
-            raise BotException(self._logger, msg)
+            raise BotException(msg)
 
         return Topic(BeautifulSoup(page.text, "lxml"))
 
@@ -142,7 +142,7 @@ class SessionMgrBase():
 
         if msg:
             self._logger.error(msg)
-            raise BotException(self._logger, msg)
+            raise BotException(msg)
 
         topic = Topic(BeautifulSoup(page.text, "lxml"))
         post  = None
@@ -157,7 +157,7 @@ class SessionMgrBase():
         if not post:
             msg = f'Unable to find post id {post_id} in thread id {topic.id}'
             self._logger.error(msg)
-            raise BotException(self._logger, msg)
+            raise BotException(msg)
 
         return post
 

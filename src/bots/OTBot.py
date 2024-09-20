@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from core.parser.Post import Post
 
-from api import Cmd
+from api.Cmd import Cmd
 
 
 class OTBot(BotBase):

@@ -1,6 +1,5 @@
 import requests
 import time
-import logging
 import warnings
 
 from core.BotConfig import BotConfig
@@ -8,7 +7,7 @@ from core.BotBase import BotBase
 from core.DiscordClient import DiscordClient
 from core.parser.Post import Post
 
-from api import Cmd
+from api.Cmd import Cmd
 
 
 class OTFeedBot(BotBase):

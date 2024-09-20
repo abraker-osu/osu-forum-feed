@@ -12,9 +12,9 @@ from threading import Thread
 
 from .BotConfig import BotConfig
 from .BotCore import BotCore
-from .DiscordClient import DiscordClient
 from .SessionMgrV2 import SessionMgrV2
 from .BotException import BotException
+
 
 
 class ForumMonitor(BotCore):
@@ -175,7 +175,7 @@ class ForumMonitor(BotCore):
         if not event_type in self.__monitor_enables:
             msg = f'Invalid event type {event_type}'
             self.__logger.debug(msg)
-            raise BotException(self.__logger, msg)
+            raise BotException(msg)
 
         return self.__monitor_enables[event_type]
 
@@ -184,7 +184,7 @@ class ForumMonitor(BotCore):
         if not event_type in self.__monitor_enables:
             msg = f'Invalid event type {event_type}'
             self.__logger.debug(msg)
-            raise BotException(self.__logger, msg)
+            raise BotException(msg)
 
         self.__logger.info(f'Setting event type {event_type} to {enable}')
         self.__monitor_enables[event_type] = enable
@@ -194,7 +194,7 @@ class ForumMonitor(BotCore):
         if not event_type in self.__monitor_statuses:
             msg = f'Invalid event type {event_type}'
             self.__logger.debug(msg)
-            raise BotException(self.__logger, msg)
+            raise BotException(msg)
 
         return self.__monitor_statuses[event_type]
 
@@ -203,7 +203,7 @@ class ForumMonitor(BotCore):
         if not event_type in self.__monitor_statuses:
             msg = f'Invalid event type {event_type}'
             self.__logger.debug(msg)
-            raise BotException(self.__logger, msg)
+            raise BotException(msg)
 
         self.__monitor_statuses[event_type] = status
 
@@ -258,22 +258,21 @@ class ForumMonitor(BotCore):
                     self.__logger.info(f'Exiting main loop.')
                     self.runtime_quit = True
                 except Exception as e:
-                    self.__logger.exception(f'Exception in main loop!')
-                    warnings.warn(e)
-                    self.runtime_quit = True
+                    try: raise BotException from e
+                    except: pass
 
             # Report warnings to admin via Discord
             for warning in w:
-                file = warning.filename.split('\\')[-1]
-                err = f'  {file}, line {warning.lineno}'
+                if not warning.source:
+                    # Warnings setting source as the exception
+                    try: raise BotException(f'Warning: {warning.message}')
+                    except: continue
 
-                DiscordClient.request('admin/post', {
-                    'src'      : 'forumbot',
-                    'contents' :
-                        '[WARNING]\n'
-                        f'**{warning.message}**\n'
-                        f'{err}'
-                })
+                # Warnings where the exception is passed as the source
+                try: raise warning.source
+                except:
+                    try: raise BotException(f'Warning: {warning.source}') from warning.source
+                    except: continue
 
             w.clear()
 
@@ -356,4 +355,8 @@ class ForumMonitor(BotCore):
         self.forum_driver(post)
 
 
+# NOTE: For this to work for the bots, it must be imported
+#   from within the functions that on this. Otherwise, if the
+#   imported from top of file, the import chain will run
+#   before this assignment is reached.
 ForumMonitor = ForumMonitor()

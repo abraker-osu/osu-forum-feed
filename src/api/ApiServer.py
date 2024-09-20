@@ -145,6 +145,7 @@ class UvicornServerPatch(uvicorn.Server):
 class ApiServer():
 
     __app     = fastapi.FastAPI()
+    __cmd     = None
     __logger  = logging.getLogger(__qualname__)
 
     __init    = False
@@ -162,7 +163,7 @@ class ApiServer():
 
         api_port = BotConfig['Core']['api_port']
 
-        CommandProcessor.init(bots)
+        ApiServer.__cmd = CommandProcessor(bots)
 
         ApiServer.__logger.info(f'Initializing server: 127.0.0.1:{api_port}')
         ApiServer.__server = UvicornServerPatch(uvicorn.Config(app=ApiServer.__app, host='127.0.0.1', port=api_port, log_level='debug'))
@@ -191,9 +192,9 @@ class ApiServer():
 
         try:
             data = await data.json()
-            return CommandProcessor.process_data(data)
+            return ApiServer.__cmd.process_data(data)
         except Exception as e:
-            warnings.warn(e)
+            warnings.warn(e, source=e)
             return Cmd.err('Something went wrong!')
 
 
