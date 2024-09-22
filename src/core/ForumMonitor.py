@@ -320,39 +320,43 @@ class ForumMonitor(BotCore):
 
 
     def handle_new_post(self, check_post_ids: "list[int]", i: int, page: requests.Response):
-        # Recheck the posts in the list before this one
-        for j in range(i):
-            if self.runtime_quit:
-                return
+        try:
+            # Recheck the posts in the list before this one
+            for j in range(i):
+                if self.runtime_quit:
+                    return
 
-            time.sleep(self.__post_rate)
+                time.sleep(self.__post_rate)
 
-            # Silent re-look over
-            # tmp so not to overwite the post_url and page we have for the found post
-            try: post_url_tmp, page_tmp = self.fetch_post(check_post_ids[j])
-            except:
-                continue
+                # Silent re-look over
+                # tmp so not to overwite the post_url and page we have for the found post
+                try: post_url_tmp, page_tmp = self.fetch_post(check_post_ids[j])
+                except:
+                    continue
 
-            if isinstance(page_tmp, type(None)) or (page_tmp.status_code != 200):
-                continue
+                if isinstance(page_tmp, type(None)) or (page_tmp.status_code != 200):
+                    continue
 
-            # If we found an earlier post, make that the latest post
-            if page_tmp.status_code == 200:
-                page = page_tmp
-                i = j
-                break
+                # If we found an earlier post, make that the latest post
+                if page_tmp.status_code == 200:
+                    page = page_tmp
+                    i = j
+                    break
 
-        # Lower rate since there is a successful request
-        self.__post_rate = max(BotConfig['Core']['rate_post_min'], self.__post_rate - 0.1)
+            # Lower rate since there is a successful request
+            self.__post_rate = max(BotConfig['Core']['rate_post_min'], self.__post_rate - 0.1)
 
-        # That is our latest post id and no need to check for any other but the next one
-        self.set_latest_post(check_post_ids[i] + 1)
-        post = SessionMgrV2.get_post(check_post_ids[i], page)
+            # That is our latest post id and no need to check for any other but the next one
+            self.set_latest_post(check_post_ids[i] + 1)
+            post = SessionMgrV2.get_post(check_post_ids[i], page)
 
-        self.__logger.debug(f'Latest post ID: {check_post_ids[i]}\tDate: {post.date}')
+            self.__logger.debug(f'Latest post ID: {check_post_ids[i]}\tDate: {post.date}')
 
-        # Send off the post data to the bots
-        self.forum_driver(post)
+            # Send off the post data to the bots
+            self.forum_driver(post)
+        except Exception as e:
+            try: raise BotException(f'Warning: {e}') from e
+            except: pass
 
 
 # NOTE: For this to work for the bots, it must be imported

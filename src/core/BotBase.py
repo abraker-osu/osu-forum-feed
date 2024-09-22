@@ -56,10 +56,7 @@ class BotBase:
         if not self.filter_data(forum_data):
             return
 
-        try: self.process_data(forum_data)
-        except Exception as e:
-            self.logger.warning(repr(e))
-            return
+        self.process_data(forum_data)
 
 
     def filter_data(self, forum_data: "Post") -> bool:
