@@ -99,13 +99,5 @@ class TestBot(BotBase):
         info = 'Prints the help text for TestBot',
         args = {
         })
-        def cmd_help(self, cmd_key: tuple[int, int]) -> dict:
-            # Validate the request. Note there are the following permission levels:
-            #   Cmd.PERMISSION_PUBLIC  - Anyone and their grandmother is allowed to use the command
-            #   Cmd.PERMISSION_SPECIAL - Anyone can use the command, but there are certain restrictions on a case-by-case basis, which are evaluated by validate_special_perm
-            #   Cmd.PERMISSION_MOD     - Only users that are returned in the get_bot_moderators function are allowed to use the command
-            #   Cmd.PERMISSION_ADMIN   - Only the bot owner (you) can use the command
-            if not self.validate_request(cmd_key):
-                return Cmd.err(f'Insufficient permissions')
-
+        def cmd_help(self) -> dict:
             return Cmd.ok('A test bot. That\'s all...')

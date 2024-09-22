@@ -58,14 +58,6 @@ class CommandProcessor():
                 assert isinstance(cmd_func['perm'], int)
                 assert callable(cmd_func['exec'])
 
-                # Make sure the command has the `cmd_key` param if it requires higher user elevation to use
-                cmd_params = inspect.signature(cmd_func['exec']).parameters
-                if 'cmd_key' in cmd_params:
-                    continue
-
-                if cmd_func['perm'] > Cmd.PERMISSION_PUBLIC:
-                    self.__logger.warning(f'{cmd_func["exec"]} requires "cmd_key" parameter (Permission level {cmd_func["perm"]})')
-
             self.__cmd_dict.update(bot_cmd_dict)
             self.__logger.info(
                 f'\tLoaded commands: {list(bot_cmd_dict.keys())}\n'
@@ -98,6 +90,11 @@ class CommandProcessor():
         -------
         dict
             Command output
+            fmt:
+            {
+                'src':      str
+                'contents': str
+            }
         """
         assert 'bot'  in data
         assert 'cmd'  in data
@@ -109,56 +106,25 @@ class CommandProcessor():
             self.__logger.debug(f'Invalid cmd: {data}')
             return Cmd.err('Command failed: No such command!')
 
-        self.__logger.info(f'Executing cmd: {data}')
-        reply = self.__execute_cmd(cmd_name, data['key'], data['args'])
-        if isinstance(reply, type(None)):
-            warnings.warn('reply is None')
-            return Cmd.err('Command failed: Bot did an oopsie daisy. Pls fix thx ^^;')
-
-        return reply
-
-
-    def __execute_cmd(self, cmd_name: str, key: int, args: list | tuple) -> dict:
-        """
-        Execute a command
-
-        Parameters
-        ----------
-        cmd_name : str
-            Name of the command to execute
-        key : int
-            Command key
-        args : tuple
-            Command arguments
-
-        Returns
-        -------
-        dict
-            Command output
-            fmt:
-            {
-                'src':      str
-                'contents': str
-            }
-        """
+        cmd_self:       Cmd = self.__cmd_dict[cmd_name]['self']
         exec_func: Callable = self.__cmd_dict[cmd_name]['exec']
         help_func: Callable = self.__cmd_dict[cmd_name]['help']
         cmd_perms: int      = self.__cmd_dict[cmd_name]['perm']
 
-        args       = list(args)
+        args       = list(data['args'])
         cmd_params = inspect.signature(exec_func).parameters
 
         # Forfill the self argument by giving it the instance of the cmd object
         if 'self' in cmd_params:
-            args.insert(0, self.__cmd_dict[cmd_name]['self'])
+            args.insert(0, cmd_self)
 
-        # Insert the command key as part of the command parameters if it's required
-        if 'cmd_key' in cmd_params:
-            idx = list(cmd_params.keys()).index('cmd_key')
-            args.insert(idx, ( cmd_perms, key ))
-        elif cmd_perms > Cmd.PERMISSION_PUBLIC:
-            warnings.warn(f'{cmd_name} requires cmd_key parameter (Permission level {cmd_perms})')
-            return Cmd.err('Something went wrong. Blame abraker.')
+        # Validate the request. Note there are the following permission levels:
+        #   Cmd.PERMISSION_PUBLIC  - Anyone and their grandmother is allowed to use the command
+        #   Cmd.PERMISSION_SPECIAL - Anyone can use the command, but there are certain restrictions on a case-by-case basis, which are evaluated by validate_special_perm
+        #   Cmd.PERMISSION_MOD     - Only users that are returned in the get_bot_moderators function are allowed to use the command
+        #   Cmd.PERMISSION_ADMIN   - Only the bot owner (you) can use the command
+        if not cmd_self.validate_request(( cmd_perms, data['key'] )):
+            return Cmd.err(f'Insufficient permissions')
 
         # Check if sufficient num of args are provided
         num_param_req = len([ arg for arg in cmd_params.keys() if '=' not in str(cmd_params[arg]) ])
@@ -166,5 +132,14 @@ class CommandProcessor():
             self.__logger.debug(f'Not enough args for cmd: {cmd_name}; args: {args}')
             return help_func()
 
+        if cmd_perms != Cmd.PERMISSION_PUBLIC:
+            warnings.warn(f'Executing command "{cmd_name}" with permission level {cmd_perms}')
+
         # Run command function
-        return exec_func(*args)
+        reply = exec_func(*args)
+
+        if isinstance(reply, type(None)):
+            warnings.warn('reply is None')
+            return Cmd.err('Command failed: Bot did an oopsie daisy. Pls fix thx ^^;')
+
+        return reply

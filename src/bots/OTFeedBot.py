@@ -102,10 +102,7 @@ class OTFeedBot(BotBase):
         info = 'Prints the about text for ForumFeedBot',
         args = {
         })
-        def cmd_about(self, cmd_key):
-            if not self.validate_request(cmd_key):
-                return Cmd.err(f'Insufficient permissions')
-
+        def cmd_about(self):
             return Cmd.ok('Forwards forum posts to a discord channel')
 
 
@@ -114,8 +111,5 @@ class OTFeedBot(BotBase):
         info = 'Prints the help text for ForumFeedBot',
         args = {
         })
-        def cmd_help(self, cmd_key):
-            if not self.validate_request(cmd_key):
-                return Cmd.err(f'Insufficient permissions')
-
+        def cmd_help(self):
             return Cmd.ok('TODO')

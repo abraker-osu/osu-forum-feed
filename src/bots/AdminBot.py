@@ -47,10 +47,7 @@ class AdminBot(BotBase):
         info = 'Prints the about text for Admin',
         args = {
         })
-        def cmd_about(self, cmd_key: tuple[int, int]) -> dict:
-            if not self.validate_request(cmd_key):
-                return Cmd.err(f'Insufficient permissions')
-
+        def cmd_about(self) -> dict:
             return Cmd.ok('This bot is used to adjust ForumMonitor and BotCore settings.')
 
 
@@ -60,10 +57,7 @@ class AdminBot(BotBase):
         args = {
             'cmd_name' : Cmd.arg(str, True, 'Name of the command to show help info for')
         })
-        def cmd_help(self, cmd_key: tuple[int, int], cmd_name: str = None) -> dict:
-            if not self.validate_request(cmd_key):
-                return Cmd.err(f'Insufficient permissions')
-
+        def cmd_help(self, cmd_name: str = None) -> dict:
             if isinstance(cmd_name, type(None)):
                 bot_cmds = "\n".join(list(CommandProcessor().cmd_dict.keys()))
                 return Cmd.ok(
@@ -87,10 +81,8 @@ class AdminBot(BotBase):
         info = 'Kills the entire thing',
         args = {
         })
-        def cmd_kill(self, cmd_key: tuple[int, int]) -> dict:
+        def cmd_kill(self) -> dict:
             from core.ForumMonitor import ForumMonitor
-            if not self.validate_request(cmd_key):
-                return Cmd.err(f'Insufficient permissions')
 
             ForumMonitor.runtime_quit = True
             return Cmd.ok(':skull:')
@@ -103,10 +95,7 @@ class AdminBot(BotBase):
             'log' : Cmd.arg([str],  False, 'Log of which bot to display'),
             'bot' : Cmd.arg([bool], True,  'Is it a bot log?')
         })
-        def cmd_show_log(self, cmd_key: tuple[int, int], log: str, bot: bool = True) -> dict:
-            if not self.validate_request(cmd_key):
-                return Cmd.err(f'Insufficient permissions')
-
+        def cmd_show_log(self, log: str, bot: bool = True) -> dict:
             # Sanitization against path traversal
             if '/' in log or '\\' in log:
                 return Cmd.err('Invalid log')
@@ -127,13 +116,10 @@ class AdminBot(BotBase):
         info = 'Shows what latest post the forum monitor is on',
         args = {
         })
-        def cmd_get_id_post(self, cmd_key: tuple[int, int]) -> dict:
+        def cmd_get_id_post(self) -> dict:
             """
             Shows what latest post and thread the forum monitor is on
             """
-            if not self.validate_request(cmd_key):
-                return Cmd.err(f'Insufficient permissions')
-
             from core.ForumMonitor import ForumMonitor
             return Cmd.ok(f'Latest post: {ForumMonitor.get_latest_post()}')
 
@@ -144,10 +130,7 @@ class AdminBot(BotBase):
         args = {
             'latest_post' : Cmd.arg(int, False, 'Latest post id')
         })
-        def cmd_set_id_post(self, cmd_key: tuple[int, int], latest_post: int) -> dict:
-            if not self.validate_request(cmd_key):
-                return Cmd.err(f'Insufficient permissions')
-
+        def cmd_set_id_post(self, latest_post: int) -> dict:
             try: latest_post = int(latest_post)
             except ValueError:
                 return Cmd.err(f'Invalid post id')
@@ -172,10 +155,7 @@ class AdminBot(BotBase):
         info = 'Shows when the core started running',
         args = {
         })
-        def cmd_time_run(self, cmd_key: tuple[int, int]) -> dict:
-            if not self.validate_request(cmd_key):
-                return Cmd.err(f'Insufficient permissions')
-
+        def cmd_time_run(self) -> dict:
             from core.ForumMonitor import ForumMonitor
             return Cmd.ok(f'Runtime: {ForumMonitor.runtime()}')
 
@@ -185,10 +165,7 @@ class AdminBot(BotBase):
         info = 'Lists available bots and their statuses',
         args = {
         })
-        def cmd_list_bots(self, cmd_key: tuple[int, int]) -> dict:
-            if not self.validate_request(cmd_key):
-                return Cmd.err(f'Insufficient permissions')
-
+        def cmd_list_bots(self) -> dict:
             from core.ForumMonitor import ForumMonitor
 
             bots: list[BotBase] = ForumMonitor.get_bot(None)
@@ -202,10 +179,7 @@ class AdminBot(BotBase):
         args = {
             'bot_name' : Cmd.arg(str, False, 'Bot name')
         })
-        def cmd_disable_bot(self, cmd_key: tuple[int, int], bot_name: str) -> dict:
-            if not self.validate_request(cmd_key):
-                return Cmd.err(f'Insufficient permissions')
-
+        def cmd_disable_bot(self, bot_name: str) -> dict:
             from core.ForumMonitor import ForumMonitor
 
             try: bot: BotBase = ForumMonitor.get_bot(bot_name)
@@ -222,10 +196,7 @@ class AdminBot(BotBase):
         args = {
             'bot' : Cmd.arg(str, False, 'Bot name')
         })
-        def cmd_enable_bot(self, cmd_key: tuple[int, int], bot_name: str) -> dict:
-            if not self.validate_request(cmd_key):
-                return Cmd.err(f'Insufficient permissions')
-
+        def cmd_enable_bot(self, bot_name: str) -> dict:
             from core.ForumMonitor import ForumMonitor
 
             try: bot: BotBase = ForumMonitor.get_bot(bot_name)

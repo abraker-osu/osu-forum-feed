@@ -57,10 +57,7 @@ class OTBot(BotBase):
         info = 'Prints the about text for OTBot',
         args = {
         })
-        def cmd_about(self, cmd_key):
-            if not self.validate_request(cmd_key):
-                return Cmd.err(f'Insufficient permissions')
-
+        def cmd_about(self):
             return Cmd.ok('This bot is just a testing bot for more complicated stuff')
 
 
@@ -69,9 +66,6 @@ class OTBot(BotBase):
         info = 'Prints the help text for OTBot',
         args = {
         })
-        def cmd_help(self, cmd_key):
-            if not self.validate_request(cmd_key):
-                return Cmd.err(f'Insufficient permissions')
-
+        def cmd_help(self):
             return Cmd.ok('This bot goes through off-topic\'s threads and posts')
 

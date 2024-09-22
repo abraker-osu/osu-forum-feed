@@ -586,7 +586,7 @@ class ThreadNecroBot(BotBase, ThreadNecroBotCore):
             'user_name' : Cmd.arg(str,   False, 'Name of the user to add or take points from'),
             'points'    : Cmd.arg(float, False, 'Number of points to add'),
         })
-        def cmd_add_user_points(self, cmd_key: tuple[int, int], user_name: str, points: float) -> dict:
+        def cmd_add_user_points(self, user_name: str, points: float) -> dict:
             """
             fmt DB:
                 "userdata" : {
@@ -595,9 +595,6 @@ class ThreadNecroBot(BotBase, ThreadNecroBotCore):
                     ...
                 }
             """
-            if not self.validate_request(cmd_key):
-                return Cmd.err('Insufficient permissions')
-
             # Request
             entry = self.obj.get_user(user_name)
             if not entry:
@@ -632,10 +629,7 @@ class ThreadNecroBot(BotBase, ThreadNecroBotCore):
         info = 'Gets the info of the previous post recorded',
         args = {
         })
-        def cmd_get_prev_post_info(self, cmd_key: tuple[int, int]) -> dict:
-            if not self.validate_request(cmd_key):
-                return Cmd.err(f'Insufficient permissions')
-
+        def cmd_get_prev_post_info(self) -> dict:
             return Cmd.ok(str(self.obj.get_prev_post_info(self.obj.get_db_table)))
 
 
@@ -645,10 +639,7 @@ class ThreadNecroBot(BotBase, ThreadNecroBotCore):
         args = {
             'user_id' : Cmd.arg(int, False, 'User id')
         })
-        def cmd_ban(self, cmd_key: tuple[int, int], user_id: int) -> dict:
-            if not self.validate_request(cmd_key):
-                return Cmd.err(f'Insufficient permissions')
-
+        def cmd_ban(self, user_id: int) -> dict:
             return Cmd.err('TODO')
             '''
             if user_id not in self.obj.banned:
@@ -665,10 +656,7 @@ class ThreadNecroBot(BotBase, ThreadNecroBotCore):
         info = 'Unbans the user with the given user id from the game',
         args = {
         })
-        def cmd_unban(self, cmd_key: tuple[int, int], user_id: int) -> dict:
-            if not self.validate_request(cmd_key):
-                return Cmd.err(f'Insufficient permissions')
-
+        def cmd_unban(self, user_id: int) -> dict:
             return Cmd.err('TODO')
             '''
             if user_id in self.obj.banned:
