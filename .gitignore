@@ -160,5 +160,5 @@ cython_debug/
 #.idea/
 /config.py
 /config.yaml
-/db.json
 /*.pickle
+*.json
