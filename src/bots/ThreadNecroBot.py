@@ -55,7 +55,7 @@ class ThreadNecroBot(BotBase, ThreadNecroBotCore):
     def process_data(self, post: Post):
         if not post.prev_post:
             msg = f'Previous post does not exist; Current post id: {post.id}'
-            raise BotException(self.logger, msg, show_traceback=False)
+            raise BotException(msg, show_traceback=False)
 
         self.logger.debug(f'ThreadNecro: processing post by {post.creator.name}...')
 
