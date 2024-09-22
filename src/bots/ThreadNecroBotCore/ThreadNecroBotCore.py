@@ -323,8 +323,9 @@ class ThreadNecroBotCore():
             lst_len   = len(table_log)
 
             return [
-                table_log.get(doc_id=i)
+                entry
                 for i in range(lst_len - num, lst_len)
+                if not isinstance(entry := table_log.get(doc_id=i), type(None))
             ]
 
 
