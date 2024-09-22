@@ -24,11 +24,11 @@ class Topic():
 
 
     @cached_property
-    def subforum_id(self) -> str:
+    def subforum_id(self) -> int:
         try:
             subforum_path_root = self.__root.find_all(class_='header-v4__row header-v4__row--bar')[0]
             subforum_url = subforum_path_root.find_all(class_='header-nav-v4__link')[-1].get('href')
-            return subforum_url[subforum_url.rfind('/') + 1:]
+            return int(subforum_url[subforum_url.rfind('/') + 1:])
         except Exception as e:
             raise ParserError(f'Unable to parse topic subforum id; {self.url}: {e}') from e
 
@@ -72,9 +72,9 @@ class Topic():
 
 
     @cached_property
-    def id(self) -> str:
+    def id(self) -> int:
         url = self.url
-        return url[url.rfind('/') + 1:]
+        return int(url[url.rfind('/') + 1:])
 
 
     # \TODO: Finish implementation
@@ -93,8 +93,8 @@ class Topic():
 
 
     @cached_property
-    def post_count(self) -> str:
-        try: return self.__root.find_all(class_='js-forum__total-count')[0].text.strip().replace(',', '')
+    def post_count(self) -> int:
+        try: return int(self.__root.find_all(class_='js-forum__total-count')[0].text.strip().replace(',', ''))
         except Exception as e:
             raise ParserError(f'Unable to parse post count; {self.url}') from e
 

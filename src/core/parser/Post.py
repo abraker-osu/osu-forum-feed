@@ -46,8 +46,8 @@ class Post():
 
 
     @cached_property
-    def post_num(self) -> str:
-        try: return self.__root['data-post-position']
+    def post_num(self) -> int:
+        try: return int(self.__root['data-post-position'])
         except Exception as e:
             raise ParserError(f'Unable to parse post number; {self.url}') from e
 
@@ -169,6 +169,6 @@ class Post():
 
 
     @cached_property
-    def id(self) -> str:
+    def id(self) -> int:
         url = self.url
-        return url[url.rfind('/') + 1:]
+        return int(url[url.rfind('/') + 1:])
