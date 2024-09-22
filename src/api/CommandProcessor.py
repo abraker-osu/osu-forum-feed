@@ -145,9 +145,8 @@ class CommandProcessor():
         help_func: Callable = self.__cmd_dict[cmd_name]['help']
         cmd_perms: int      = self.__cmd_dict[cmd_name]['perm']
 
-        args          = list(args)
-        cmd_params    = inspect.signature(exec_func).parameters
-        num_param_req = len([ arg for arg in cmd_params.keys() if arg == str(cmd_params[arg]) ])
+        args       = list(args)
+        cmd_params = inspect.signature(exec_func).parameters
 
         # Forfill the self argument by giving it the instance of the cmd object
         if 'self' in cmd_params:
@@ -162,17 +161,10 @@ class CommandProcessor():
             return Cmd.err('Something went wrong. Blame abraker.')
 
         # Check if sufficient num of args are provided
+        num_param_req = len([ arg for arg in cmd_params.keys() if '=' not in str(cmd_params[arg]) ])
         if len(args) < num_param_req:
             self.__logger.debug(f'Not enough args for cmd: {cmd_name}; args: {args}')
             return help_func()
 
-        # Take [:num_param_req + 1] to cutoff extra args
+        # Run command function
         return exec_func(*args)
-        # try: return exec_func(*args)
-        # except TypeError as e:
-        #     self.__logger.debug(
-        #         f'Invalid args for cmd: {cmd_name} ({e})\n'
-        #         f'\targs: {args}\n'
-        #         f'\texpected: {cmd_params}'
-        #     )
-        #     return help_func()
