@@ -59,6 +59,8 @@ class ThreadNecroBot(BotBase, ThreadNecroBotCore):
             msg = f'Previous post does not exist; Current post id: {post.id}'
             raise BotException(self.logger, msg, show_traceback=False)
 
+        self.logger.debug(f'ThreadNecro: processing post by {post.creator.name}...')
+
         # \TODO: Figure out how to ignore banned user's post entirely (not affect the game)
         data = {
             'curr_post_id'   : post.id,

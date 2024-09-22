@@ -23,7 +23,7 @@ class OTBot(BotBase):
 
 
     def process_data(self, post: "Post"):
-        self.logger.info(f'Found OT post by: {post.creator.name} in thread: {post.topic.name}')
+        self.logger.debug(f'Found OT post by: {post.creator.name} in thread: {post.topic.name}')
 
         data = {}
         if post.creator.name == 'abraker':
@@ -35,7 +35,7 @@ class OTBot(BotBase):
         if 'post_id' not in data:
             return
 
-        self.logger.info('Writing post count to post...')
+        self.logger.debug('Writing post count to post...')
         SessionMgrV2.edit_post(str(data['post_id']), '\n\n edit: ' + str(data['post_count']), append=True)
 
 
