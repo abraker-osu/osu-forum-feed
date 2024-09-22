@@ -107,14 +107,19 @@ class AdminBot(BotBase):
             if not self.validate_request(cmd_key):
                 return Cmd.err(f'Insufficient permissions')
 
+            # Sanitization against path traversal
             if '/' in log or '\\' in log:
                 return Cmd.err('Invalid log')
 
             if bot == True:
                 log = f'bots/{log}'
 
-            try:    return Cmd.ok(Utils.tail(10, f'logs/{log}.log'))
-            except: return Cmd.err('Invalid log')
+            log = f'logs/{log}.log'
+            warnings.warn(f'File access: {log}')
+
+            try: return Cmd.ok(Utils.tail(10, log))
+            except FileNotFoundError:
+                return Cmd.err('Invalid log')
 
 
         @Cmd.help(

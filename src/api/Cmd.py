@@ -1,5 +1,6 @@
 from typing import Optional, Callable
 import logging
+import warnings
 
 from core.BotConfig import BotConfig
 from core.BotBase import BotBase
@@ -212,14 +213,17 @@ class Cmd():
 
         # Check against bot owner
         if requestor_id == BotConfig['Core']['discord_admin_user_id']:
+            warnings.warn(f'Validated bot owner for uid {requestor_id}')
             return True
 
         if perm > Cmd.PERMISSION_MOD:
+            # The command is an admin command, disallow
             return False
 
         # Check against moderator
         bot_moderator_ids = self.get_bot_moderators()
         if requestor_id in bot_moderator_ids:
+            warnings.warn(f'Validated bot moderator for uid {requestor_id}')
             return True
 
         if perm > Cmd.PERMISSION_SPECIAL:
@@ -227,6 +231,7 @@ class Cmd():
 
         # Check against special role
         if self.validate_special_perm(requestor_id, args):
+            warnings.warn(f'Validated special permission for uid {requestor_id}')
             return True
 
         if perm > Cmd.PERMISSION_PUBLIC:
