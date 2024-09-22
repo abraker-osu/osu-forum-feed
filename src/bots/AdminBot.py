@@ -124,10 +124,10 @@ class AdminBot(BotBase):
 
         @Cmd.help(
         perm = Cmd.PERMISSION_ADMIN,
-        info = 'Shows what latest post and thread the forum monitor is on',
+        info = 'Shows what latest post the forum monitor is on',
         args = {
         })
-        def cmd_latest_post_thread(self, cmd_key: tuple[int, int]) -> dict:
+        def cmd_get_id_post(self, cmd_key: tuple[int, int]) -> dict:
             """
             Shows what latest post and thread the forum monitor is on
             """
@@ -144,7 +144,7 @@ class AdminBot(BotBase):
         args = {
             'latest_post' : Cmd.arg(int, False, 'Latest post id')
         })
-        def cmd_set_latest_post(self, cmd_key: tuple[int, int], latest_post: int) -> dict:
+        def cmd_set_id_post(self, cmd_key: tuple[int, int], latest_post: int) -> dict:
             if not self.validate_request(cmd_key):
                 return Cmd.err(f'Insufficient permissions')
 
