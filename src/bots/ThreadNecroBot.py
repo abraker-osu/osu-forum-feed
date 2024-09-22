@@ -599,6 +599,11 @@ class ThreadNecroBot(BotBase, ThreadNecroBotCore):
                 f'{i:>3}: [{entry["time"]:<16}] {entry["user_name"]:<16} | all time: {entry["score_alltime"]:>8.3f} pts   monthly: {entry["score_monthly"]:>8.3f} pts\n'
                 for i, entry in enumerate(entries)
             ))
+
+
+
+        @Cmd.help(
+        perm = Cmd.PERMISSION_MOD,
         info = 'Adds the specified number of points to the user specified or subtracts if the value is negative',
         args = {
             'user_name' : Cmd.arg(str,   False, 'Name of the user to add or take points from'),
@@ -643,7 +648,7 @@ class ThreadNecroBot(BotBase, ThreadNecroBotCore):
 
 
         @Cmd.help(
-        perm = Cmd.PERMISSION_ADMIN,
+        perm = Cmd.PERMISSION_MOD,
         info = 'Gets the info of the previous post recorded',
         args = {
         })
@@ -652,7 +657,7 @@ class ThreadNecroBot(BotBase, ThreadNecroBotCore):
 
 
         @Cmd.help(
-        perm = Cmd.PERMISSION_ADMIN,
+        perm = Cmd.PERMISSION_MOD,
         info = 'Bans the user with the given user id from the game',
         args = {
             'user_id' : Cmd.arg(int, False, 'User id')
@@ -670,7 +675,7 @@ class ThreadNecroBot(BotBase, ThreadNecroBotCore):
 
 
         @Cmd.help(
-        perm = Cmd.PERMISSION_ADMIN,
+        perm = Cmd.PERMISSION_MOD,
         info = 'Unbans the user with the given user id from the game',
         args = {
         })
