@@ -448,7 +448,7 @@ class ThreadNecroBot(BotBase, ThreadNecroBotCore):
         log_text = ''
 
         # Generate log lines
-        for log_data in reversed(log_list[:]):
+        for log_data in log_list[:]:
             log_text += self.generate_log_line(log_data, log_list) + '\n'
 
         if log_text == '':
@@ -578,7 +578,27 @@ class ThreadNecroBot(BotBase, ThreadNecroBotCore):
 
 
         @Cmd.help(
-        perm = Cmd.PERMISSION_ADMIN,
+        perm = Cmd.PERMISSION_PUBLIC,
+        info = 'Gets 10 log line history',
+        args = {
+            'num' : Cmd.arg(int, True, '(optional) Number of logs to get'),
+            'idx' : Cmd.arg(int, True, '(optional) Number of logs to go back to go')
+        })
+        def cmd_get_log(self, num: int = 10, idx: int = 0) -> dict:
+            """
+            fmt DB:
+                'log_data' : {
+                    [idx:int] : { 'time' : str, 'user_name' : str, 'user_id' : int, 'post_id' : int, 'added_score' : float, 'score_alltime' : float, 'score_monthly' : float },
+                    [idx:int] : { 'time' : str, 'user_name' : str, 'user_id' : int, 'post_id' : int, 'added_score' : float, 'score_alltime' : float, 'score_monthly' : float },
+                    ...
+                }
+            """
+            entries = self.obj.get_log_list(idx, int(idx), int(num))
+
+            return Cmd.ok(''.join(
+                f'{i:>3}: [{entry["time"]:<16}] {entry["user_name"]:<16} | all time: {entry["score_alltime"]:>8.3f} pts   monthly: {entry["score_monthly"]:>8.3f} pts\n'
+                for i, entry in enumerate(entries)
+            ))
         info = 'Adds the specified number of points to the user specified or subtracts if the value is negative',
         args = {
             'user_name' : Cmd.arg(str,   False, 'Name of the user to add or take points from'),

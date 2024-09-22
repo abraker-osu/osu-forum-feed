@@ -296,7 +296,7 @@ class ThreadNecroBotCore():
             return rank
 
 
-    def get_log_list(self, db_type: int) -> list[table.Document]:
+    def get_log_list(self, db_type: int, idx: int = 0, num: int = __MAX_ENTRIES_LOGS) -> list[table.Document]:
         """
         fmt DB:
             'log_data' : {
@@ -308,10 +308,9 @@ class ThreadNecroBotCore():
                 [type:int] : { 'num' : int },
             }
         """
-        num = self.__MAX_ENTRIES_LOGS
-
         with tinydb.TinyDB(f'{self.__db_path}/{self.__DB_FILE_LOGS}') as db:
             if db_type == self.DB_TYPE_MONTHLY:
+                # If it's monthly, figure out how many monthly entries to retrieve
                 table_log = db.table(self.__TABLE_LOGS_META)
                 entry = table_log.get(doc_id=int(db_type))
 
@@ -324,7 +323,7 @@ class ThreadNecroBotCore():
 
             return [
                 entry
-                for i in range(lst_len - num, lst_len)
+                for i in range(lst_len - idx, lst_len - idx - num, -1)
                 if not isinstance(entry := table_log.get(doc_id=i), type(None))
             ]
 
