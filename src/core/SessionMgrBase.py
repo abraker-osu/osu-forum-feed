@@ -40,10 +40,8 @@ class SessionMgrBase():
             response = self.__session.get(url, timeout=10)
             self.__validate_response(response)
             return response
-        except (requests.exceptions.ConnectionError, requests.exceptions.Timeout) as e:
-            msg = f'Timed out while fetching url: {url}'
-            self._logger.error(msg)
-            raise BotException(msg) from e
+        except (requests.exceptions.ConnectionError, requests.exceptions.Timeout):
+            raise BotException(f'Timed out while fetching url: {url}', False)
         #except requests.exceptions.ChunkedEncodingError as e:
         #    msg = 'Unable to fetch url: ' + str(url) + '\n' + str(e)
         #    raise BotException(msg)
