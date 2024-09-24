@@ -7,7 +7,7 @@ import datetime
 import random
 
 from core.BotCore import BotCore
-from core.console_framework import Cmd
+from api.Cmd import Cmd
 
 from bots.ThreadNecroBot import ThreadNecroBot
 

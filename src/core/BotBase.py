@@ -2,7 +2,7 @@ import logging
 
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
-    from api import Cmd
+    from api.Cmd import Cmd
     from .parser import Post
 
 
