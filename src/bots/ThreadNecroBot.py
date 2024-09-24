@@ -1,6 +1,7 @@
 import math
 import random
 import datetime
+import warnings
 
 from dateutil.parser import parse
 from dateutil.relativedelta import relativedelta
@@ -642,7 +643,7 @@ class ThreadNecroBot(BotBase, ThreadNecroBotCore):
 
             try: self.obj.write_post()
             except Exception as e:
-                msg += f'\nWarning: Error writing post ({type(e).__name__}: {e})'
+                warnings.warn(f'warning: {e}', source=e)
 
             return Cmd.ok(msg)
 
