@@ -132,6 +132,10 @@ class CommandProcessor():
             self.__logger.debug(f'Not enough args for cmd: {cmd_name}; args: {args}')
             return help_func()
 
+        if len(args) > len(cmd_params):
+            self.__logger.debug(f'Too many args for cmd: {cmd_name}; args: {args}')
+            return help_func()
+
         if cmd_perms != Cmd.PERMISSION_PUBLIC:
             warnings.warn(f'Executing command "{cmd_name}" with permission level {cmd_perms}')
 
