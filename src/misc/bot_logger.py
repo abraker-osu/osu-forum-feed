@@ -42,16 +42,16 @@ if 'global_loger' not in globals():
         """
         A logger set to have a polled stream handler and colorized formatter (windows only)
         """
-        __sh = logging.StreamHandler()
-
-        is_win = sys.platform == 'win32'
-        if is_win:
-            __sh.setFormatter(ColorFormatter())
-        else:
-            __sh.setFormatter(logging.Formatter('%(levelname)s  %(asctime)s   [ %(name)s ] %(message)s'))
-
-        def __init__(self, name: str, level: int = logging.DEBUG):
+        def __init__(self, name: str = '', level: int = logging.DEBUG):
             logging.Logger.__init__(self, name, level=level)
+
+            self.__sh = logging.StreamHandler()
+
+            is_win = sys.platform == 'win32'
+            if is_win:
+                self.__sh.setFormatter(ColorFormatter())
+            else:
+                self.__sh.setFormatter(logging.Formatter('%(levelname)s  %(asctime)s   [ %(name)s ] %(message)s'))
 
             self.addHandler(self.__sh)
 
