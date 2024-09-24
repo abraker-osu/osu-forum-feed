@@ -317,9 +317,9 @@ class ThreadNecroBot(BotBase, ThreadNecroBotCore):
         data = {
             'time'        : str(data['curr_post_time']),
             'user_name'   : str(data['curr_user_name']),
-            'user_id'     : str(data['curr_user_id']),
-            'post_id'     : str(data['curr_post_id']),
-            'added_score' : str('%.3f'%(added_score)),
+            'user_id'     : int(data['curr_user_id']),
+            'post_id'     : int(data['curr_post_id']),
+            'added_score' : float(f'{added_score:.3f}'),
         }
 
         self.update_user_data(data)
@@ -433,14 +433,15 @@ class ThreadNecroBot(BotBase, ThreadNecroBotCore):
         for log in log_list:
             longest_score = max(longest_score, len(str(abs(float(log['added_score'])))))
 
-        log_fmt = '[ {0} ]    {1:<%d}  {2:<%d}  | Total Score: {3}' % (longest_username, longest_score + 1)
-
         sign = '+' if float(data['added_score']) >= 0 else ''
+        log_fmt = '[ {0} ]    {1:<%d}  {2}{3:>%d.3f}  | Total Score: {4:>6.3f}' % (longest_username, longest_score + 1)
+
         return log_fmt.format(
             data['time'],
             data['user_name'],
-            sign + str(data['added_score']),
-            data['score_alltime']
+            sign,
+            float(data['added_score']),
+            float(data['score_alltime'])
         )
 
 
