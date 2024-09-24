@@ -173,18 +173,14 @@ class ForumMonitor(BotCore):
 
     def get_enable(self, event_type: int):
         if not event_type in self.__monitor_enables:
-            msg = f'Invalid event type {event_type}'
-            self.__logger.debug(msg)
-            raise BotException(msg)
+            raise BotException(f'Invalid event type {event_type}')
 
         return self.__monitor_enables[event_type]
 
 
     def set_enable(self, event_type: int, enable: bool):
         if not event_type in self.__monitor_enables:
-            msg = f'Invalid event type {event_type}'
-            self.__logger.debug(msg)
-            raise BotException(msg)
+            raise BotException(f'Invalid event type {event_type}')
 
         self.__logger.info(f'Setting event type {event_type} to {enable}')
         self.__monitor_enables[event_type] = enable
@@ -192,18 +188,14 @@ class ForumMonitor(BotCore):
 
     def get_status(self, event_type: int):
         if not event_type in self.__monitor_statuses:
-            msg = f'Invalid event type {event_type}'
-            self.__logger.debug(msg)
-            raise BotException(msg)
+            raise BotException(f'Invalid event type {event_type}')
 
         return self.__monitor_statuses[event_type]
 
 
     def __set_status(self, event_type: int, status: bool):
         if not event_type in self.__monitor_statuses:
-            msg = f'Invalid event type {event_type}'
-            self.__logger.debug(msg)
-            raise BotException(msg)
+            raise BotException(f'Invalid event type {event_type}')
 
         self.__monitor_statuses[event_type] = status
 
@@ -242,7 +234,7 @@ class ForumMonitor(BotCore):
                     if self.get_enable(ForumMonitor.NEW_POST) == True:
                         if not warned_post_check_timeout:
                             if time.time() - last_post_check > timeout:
-                                self.__logger.warning('Post checking has timed out! (this means one of the modules halted)')
+                                warnings.warn('Post checking has timed out! (this means one of the modules halted)')
                                 warned_post_check_timeout = True
 
                     if not new_post_task or not new_post_task.is_alive():
@@ -359,7 +351,7 @@ class ForumMonitor(BotCore):
             except: pass
 
 
-# NOTE: For this to work for the bots, it must be imported
+# NOTE: For this to work for the bots it must be imported
 #   from within the functions that on this. Otherwise, if the
 #   imported from top of file, the import chain will run
 #   before this assignment is reached.

@@ -28,11 +28,18 @@ class BotBase:
         return self.__name
 
 
-    def enable(self):
+    def enable(self) -> None:
+        """
+        Enable the bot. This will allow the bot to receive new post events.
+        """
         self.__enable = True
 
 
-    def disable(self):
+
+    def disable(self) -> None:
+        """
+        Disable the bot. This will prevent the bot from receiving new post events.
+        """
         self.__enable = False
 
 
@@ -97,6 +104,4 @@ class BotBase:
         NotImplementedError
             If this method is not implemented in the child class.
         """
-        msg = 'process_data method not implemented'
-        self.logger.error(msg)
-        raise NotImplementedError(msg)
+        raise NotImplementedError('process_data method not implemented')
