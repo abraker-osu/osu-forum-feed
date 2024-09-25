@@ -3,20 +3,15 @@ import pytest
 import logging
 import time
 
-import yaml
-
 from core.SessionMgrV1 import SessionMgrV1
 
 
 class TestSessionV1:
 
-    def setup_class(cls):
-        cls.logger = logging.getLogger('TestSession')
-        cls.logger.setLevel(logging.DEBUG)
+    __logger = logging.getLogger(__qualname__)
 
-        with open('config.yaml', 'r') as f:
-            cls.config = yaml.safe_load(f)
-        time.sleep(1)
+    def setup_class(cls):
+        cls.__logger.setLevel(logging.DEBUG)
 
 
     @classmethod
@@ -25,21 +20,14 @@ class TestSessionV1:
 
 
     def test_sessionV1_web_read(self):
-        session_mgr = SessionMgrV1()
-
         start = time.time()
-        session_mgr.fetch_web_data('https://osu.ppy.sh/community/forums/topics/145250/?n=0')
-        self.logger.info(f'Got webpage in {time.time() - start}s')
+        SessionMgrV1.fetch_web_data('https://osu.ppy.sh/community/forums/topics/145250/?n=0')
+        self.__logger.info(f'Got webpage in {time.time() - start}s')
 
-        assert session_mgr.get_last_status_code() == 200
-        session_mgr.__del__()
+        assert SessionMgrV1.get_last_status_code() == 200
 
 
+    @pytest.mark.skip('No longer supported')
     @pytest.mark.login
     def test_sessionV1_login(self):
-        session_mgr = SessionMgrV1()
-        session_mgr.login(
-            self.config['Core']['osuweb_username'],
-            self.config['Core']['osuweb_password']
-        )
-        session_mgr.__del__()
+        SessionMgrV1.login()

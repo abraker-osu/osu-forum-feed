@@ -6,10 +6,21 @@ import logging
 import datetime
 import random
 
-from core.BotCore import BotCore
+from core.BotConfig import BotConfig
 from api.Cmd import Cmd
 
 from bots.ThreadNecroBot import ThreadNecroBot
+
+
+# Override botconfig settings
+BotConfig['Core'].update({
+    'is_dbg'      : True,
+    'db_path_dbg' : 'db/test',
+    'bots_path'   : 'src/bots',
+
+    'discord_admin_user_id' : 1234
+})
+
 
 
 class ThreadNecroBotTest(ThreadNecroBot):
@@ -78,51 +89,29 @@ class ThreadNecroBotTest(ThreadNecroBot):
         return post_content
 
 
-class BotCoreTest(BotCore):
-
-    def check_db(self):
-        """
-        Implement required `check_db` as stub
-        """
-        pass
-
-
-    def _BotCore__init_bots(self):
-        """
-        Don't initialize bots for this testing
-        """
-        pass
-
 
 class TestNecroBot:
 
+    __logger = logging.getLogger(__qualname__)
+
     @classmethod
     def setup_class(cls):
-        cls.logger = logging.getLogger('TestNecroBot')
-        cls.logger.setLevel(logging.DEBUG)
+        cls.__logger.setLevel(logging.DEBUG)
 
 
     def setup_method(self, method):
-        self.logger.info('Creating new ThreadNecroBotTest...')
+        self.__logger.info('Creating new ThreadNecroBotTest...')
 
-        self.core = BotCoreTest({
-            'Core' : {
-                'is_dbg'      : True,
-                'db_path_dbg' : 'db/test',
-                'bots_path'   : 'src/bots',
+        BotConfig['ThreadNecroBot'].update({
+            'post_id'      :  random.randint(1, 10000),
+            'topic_id'     :  random.randint(1, 10000),
 
-                'discord_admin_user_id' : 1234
-            },
-            'ThreadNecroBot' : {
-                'post_id'      :  random.randint(1, 10000),
-                'topic_id'     :  random.randint(1, 10000),
-
-                'post_id_dbg'  :  random.randint(1, 10000),
-                'topic_id_dbg' :  random.randint(1, 10000),
-            }
+            'post_id_dbg'  :  random.randint(1, 10000),
+            'topic_id_dbg' :  random.randint(1, 10000),
         })
 
-        self.bot = ThreadNecroBotTest(self.core)
+        self.bot = ThreadNecroBotTest()
+        self.__del_db()
         self.bot.post_init()
 
 
@@ -130,7 +119,10 @@ class TestNecroBot:
         """
         Reset the database after each test to start each test clean
         """
-        self.logger.info('Deleting db...')
+        self.__del_db()
+
+
+    def __del_db(self):
         time_start = time.time()
 
         db_files = [
@@ -143,14 +135,15 @@ class TestNecroBot:
 
         for db_file in db_files:
             while True:
-                try: os.remove(f'{self.core.db_path}/{db_file}')
+                try:
+                    os.remove(f'{BotConfig["Core"]["db_path_dbg"]}/{db_file}')
+                    self.__logger.info(f'Deleted {BotConfig["Core"]["db_path_dbg"]}/{db_file}...')
                 except PermissionError:
                     time.sleep(0.1)
-                except FileNotFoundError:
-                    break
 
-                if time.time() - time_start > 1:
-                    self.logger.info(f'Failed to delete db - something is using it.')
+                    if time.time() - time_start > 1:
+                        pytest.fail(f'Failed to delete db - something is using it.')
+                except FileNotFoundError:
                     break
 
 
@@ -786,15 +779,13 @@ class TestNecroBot:
 
         log_list = self.bot.get_log_list(self.bot.DB_TYPE_ALLTIME)
         assert len(log_list) <= self.bot._ThreadNecroBotCore__MAX_ENTRIES_LOGS, 'Log list does not have the expected number of entries'
-        assert int(log_list[-1]['post_id']) > int(log_list[0]['post_id']), 'Log list should be sorted from oldest to newest'
+        assert int(log_list[-1]['post_id']) < int(log_list[0]['post_id']), 'Log list should be sorted from newest to oldest'
 
 
     def test_50__cmd_add_user_points__user_points(self):
         """
         Tests player's points after doing the add_user_points command
         """
-        cmd_key = ( Cmd.PERMISSION_MOD, 1234 )
-
         for i in range(100):
             data = {
                 'time'        : str(datetime.datetime.now()),
@@ -809,8 +800,8 @@ class TestNecroBot:
         # Test positive point addition to user
         test_user_50_pts_before = self.bot.get_user_points(50, self.bot.DB_TYPE_ALLTIME)
 
-        bot_cmd = ThreadNecroBotTest.BotCmd(self.logger, self.bot)
-        print(bot_cmd.cmd_add_user_points['exec'](bot_cmd, cmd_key, 'test user 50', '123.456'))
+        bot_cmd = ThreadNecroBotTest.BotCmd(self.bot)
+        print(bot_cmd.cmd_add_user_points['exec'](bot_cmd, 'test user 50', '123.456'))
 
         test_user_50_pts_after = self.bot.get_user_points(50, self.bot.DB_TYPE_ALLTIME)
 
@@ -821,8 +812,8 @@ class TestNecroBot:
         # Test negative point addition to user
         test_user_50_pts_before = self.bot.get_user_points(50, self.bot.DB_TYPE_ALLTIME)
 
-        bot_cmd = ThreadNecroBotTest.BotCmd(self.logger, self.bot)
-        print(bot_cmd.cmd_add_user_points['exec'](bot_cmd, cmd_key, 'test user 50', '-123.456'))
+        bot_cmd = ThreadNecroBotTest.BotCmd(self.bot)
+        print(bot_cmd.cmd_add_user_points['exec'](bot_cmd, 'test user 50', '-123.456'))
 
         test_user_50_pts_after = self.bot.get_user_points(50, self.bot.DB_TYPE_ALLTIME)
 
@@ -835,8 +826,6 @@ class TestNecroBot:
         """
         Tests the top 10 list after doing the add_user_points command
         """
-        cmd_key = ( Cmd.PERMISSION_MOD, 1234 )
-
         for i in range(100):
             data = {
                 'added_score' : 100*random.random(),
@@ -846,8 +835,8 @@ class TestNecroBot:
             }
             self.bot.update_user_data(data)
 
-        bot_cmd = ThreadNecroBotTest.BotCmd(self.logger, self.bot)
-        print(bot_cmd.cmd_add_user_points['exec'](bot_cmd, cmd_key, 'test user 50', '1.23456'))
+        bot_cmd = ThreadNecroBotTest.BotCmd(self.bot)
+        print(bot_cmd.cmd_add_user_points['exec'](bot_cmd, 'test user 50', '1.23456'))
 
         # Make sure the top 10 list is returned sorted correctly after invoking the add_user_points command
         top_10_list = self.bot.get_top_10_list(self.bot.DB_TYPE_ALLTIME)

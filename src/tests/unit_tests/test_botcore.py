@@ -1,11 +1,11 @@
-import os
+import shutil
 import time
 import logging
-import random
-
 import pytest
+
 from bs4 import BeautifulSoup
 
+from core.BotConfig import BotConfig
 from core.BotCore import BotCore
 from core.parser import Topic, Post
 
@@ -22,58 +22,54 @@ class BotCoreTest(BotCore):
 
 class TestBotCore:
 
+    __logger = logging.getLogger(__qualname__)
+
     @classmethod
     def setup_class(cls):
-        cls.logger = logging.getLogger('TestBotCore')
-        cls.logger.setLevel(logging.DEBUG)
+        cls.__logger.setLevel(logging.DEBUG)
+
+        # Override botconfig settings
+        BotConfig['Core'].update({
+            'is_dbg'          : True,
+            'bots_path'       : 'src/bots',
+            'db_path_dbg'     : 'db/test',
+            'api_port'        : 0,
+        })
 
 
     def setup_method(self, method):
-        self.logger.info('Creating new BotCore...')
-        self.core = BotCoreTest({
-            'Core' : {
-                'is_dbg'    : True,
-                'db_path'   : 'db-test.json',
-                'bots_path' : 'src/bots'
-            },
-            'ThreadNecroBot' : {
-                'post_id'      :  random.randint(1, 10000),
-                'topic_id'     :  random.randint(1, 10000),
+        self.__del_db()
 
-                'post_id_dbg'  :  random.randint(1, 10000),
-                'topic_id_dbg' :  random.randint(1, 10000),
-            },
-            'ForumFeedBot' : {
-                'discord_bot_port' : random.randint(1, 10000),
-            }
-        })
+        self.__logger.info('Creating new BotCore...')
+        self.core = BotCoreTest()
 
 
     def teardown_method(self, method):
         """
         Reset the database after each test to start each test clean
         """
-        self.logger.info('Deleting db...')
-        self.core.__del__()
+        self.__del_db()
+
+
+    def __del_db(self):
+        self.__logger.info('Deleting db...')
         time_start = time.time()
 
         while True:
-            try: os.remove('db-test.json')
-            except PermissionError:
+            try: shutil.rmtree(BotConfig['Core']['db_path_dbg'])
+            except PermissionError as e:
                 time.sleep(0.1)
-            except FileNotFoundError:
-                break
-            else:
-                break
 
-            if time.time() - time_start > 1:
-                self.logger.info(f'Failed to delete db - something is using it.')
+                if time.time() - time_start > 1:
+                    pytest.fail(f'Failed to delete db - something is using it: {e}')
+                    break
+
+            except FileNotFoundError:
                 break
 
 
     @staticmethod
     def __get_post() -> Post:
-        logger = logging.Logger(TestBotCore.__name__)
         with open('src/tests/unit_tests/forum_test_page.htm', 'rb') as test_forum_page:
             content = test_forum_page.read()
 
@@ -86,7 +82,7 @@ class TestBotCore:
     def test_bots(self):
         # Just make sure it does not crash
         bot = self.core.get_bot('TestBot')
-        assert bot.get_name() == 'TestBot'
+        assert bot.name == 'TestBot'
 
 
     def test_forum_driver(self):
