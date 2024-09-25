@@ -162,6 +162,9 @@ class ApiServer():
             return
 
         api_port = BotConfig['Core']['api_port']
+        if api_port == 0:
+            ApiServer.__logger.debug('ApiServer disabled')
+            return
 
         ApiServer.__cmd = CommandProcessor(bots)
 

@@ -28,6 +28,7 @@ Core:
   discord_bot_admin_user_id:  # (int)
 
   # Port on which the bot's API will listen on
+  # Set to 0 to disable the API
   api_port:  # (int)
 
   # SessionV1: Username and password for osu!web
