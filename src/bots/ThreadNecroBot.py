@@ -30,6 +30,7 @@ class ThreadNecroBot(BotBase, ThreadNecroBotCore):
 
         self.topic_id  = BotConfig['ThreadNecroBot']['topic_id_dbg'] if is_dbg else BotConfig['ThreadNecroBot']['topic_id']
         self.main_post = BotConfig['ThreadNecroBot']['post_id_dbg']  if is_dbg else BotConfig['ThreadNecroBot']['post_id']
+
         self.banned    = set()    # \TODO: this needs to go into db
 
 

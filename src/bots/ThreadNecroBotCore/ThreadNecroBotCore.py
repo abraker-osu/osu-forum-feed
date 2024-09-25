@@ -1,3 +1,4 @@
+import os
 import math
 import logging
 import datetime
@@ -163,6 +164,7 @@ class ThreadNecroBotCore():
                 table_scores = db.table(table_name)
 
                 if len(table_scores) < self.__MAX_ENTRIES_TOP_SCORE:
+                    # Limit number of top scores in db
                     table_scores.insert(new_score_data)
                     return
 
@@ -250,12 +252,29 @@ class ThreadNecroBotCore():
 
     def get_user_points(self, user_id: str | int, type_id: int) -> float:
         """
+        Gets the number of points the user has from the database
+
         fmt DB:
             "userdata" : {
                 [user_id:int] : { 'points_alltime' : float, 'points_monthly' : float, 'user_name' : str, 'post_id' : int },
                 [user_id:int] : { 'points_alltime' : float, 'points_monthly' : float, 'user_name' : str, 'post_id' : int },
                 ...
             }
+
+        Parameters
+        ----------
+        user_id : str | int
+            The id of the user
+
+        type_id : int
+            The type of points to get
+            - (0) self.DB_TYPE_ALLTIME: Retrieves all time top scores
+            - (1) self.DB_TYPE_MONTHLY: Retrieves monthly top scores
+
+        Returns
+        -------
+        float
+            The number of points the user has
         """
         key_id = 'points_alltime' if type_id == self.DB_TYPE_ALLTIME else 'points_monthly'
 
@@ -270,11 +289,29 @@ class ThreadNecroBotCore():
 
     def get_user_rank(self, user_id: str | int, type_id: int) -> int:
         """
-        "userdata" : {
-            [user_id:int] : { 'points_alltime' : float, 'points_monthly' : float, 'user_name' : str, 'post_id' : int },
-            [user_id:int] : { 'points_alltime' : float, 'points_monthly' : float, 'user_name' : str, 'post_id' : int },
-            ...
-        }
+        Gets the rank of the user from the database
+
+        fmt DB:
+            "userdata" : {
+                [user_id:int] : { 'points_alltime' : float, 'points_monthly' : float, 'user_name' : str, 'post_id' : int },
+                [user_id:int] : { 'points_alltime' : float, 'points_monthly' : float, 'user_name' : str, 'post_id' : int },
+                ...
+            }
+
+        Parameters
+        ----------
+        user_id : str | int
+            The id of the user
+
+        type_id : int
+            The type of points to use for ranking
+            - (0) self.DB_TYPE_ALLTIME: Retrieves all time top scores
+            - (1) self.DB_TYPE_MONTHLY: Retrieves monthly top scores
+
+        Returns
+        -------
+        int | None
+            The rank of the user or None if the user is not found
         """
         key_id = 'points_alltime' if type_id == self.DB_TYPE_ALLTIME else 'points_monthly'
 
@@ -300,6 +337,8 @@ class ThreadNecroBotCore():
 
     def get_log_list(self, db_type: int, idx: int = 0, num: int = __MAX_ENTRIES_LOGS) -> list[table.Document]:
         """
+        Retrieves a list of log entries from the database
+
         fmt DB:
             'log_data' : {
                 [idx:int] : { 'time' : str, 'user_name' : str, 'user_id' : int, 'post_id' : int, 'added_score' : float, 'score_alltime' : float, 'score_monthly' : float },
@@ -309,6 +348,24 @@ class ThreadNecroBotCore():
             "log_data_meta : {
                 [type:int] : { 'num' : int },
             }
+
+        Parameters
+        ----------
+        db_type : int
+            The type of log entries to retrieve
+            - (0) self.DB_TYPE_ALLTIME: Retrieves all time top scores
+            - (1) self.DB_TYPE_MONTHLY: Retrieves monthly top scores
+
+        idx : int
+            The starting index of the log entries to retrieve
+
+        num : int
+            The number of log entries to retrieve
+
+        Returns
+        -------
+        list[table.Document]
+            A list of log entries
         """
         with tinydb.TinyDB(f'{self.__db_path}/{self.__DB_FILE_LOGS}') as db:
             if db_type == self.DB_TYPE_MONTHLY:
@@ -332,6 +389,8 @@ class ThreadNecroBotCore():
 
     def get_top_scores_list(self, db_type: int) -> list[table.Document]:
         """
+        Retrieves a list of top scores from the database
+
         fmt DB:
             "top_scores" : {
                 [idx:int] : { 'time' : str, 'user_id' : int, 'user_name' : str, 'post_id' : int, 'added_score' : float },
@@ -343,6 +402,19 @@ class ThreadNecroBotCore():
                 [idx:int] : { 'time' : str, 'user_id' : int, 'user_name' : str, 'post_id' : int, 'added_score' : float },
                 ...
             }
+
+        Parameters
+        ----------
+        db_type : int
+            The type of top scores to retrieve
+            - (0) self.DB_TYPE_ALLTIME: Retrieves all time top scores
+            - (1) self.DB_TYPE_MONTHLY: Retrieves monthly top scores
+
+        Returns
+        -------
+        list[table.Document]
+            A list of top score entries
+
         """
         with tinydb.TinyDB(f'{self.__db_path}/{self.__DB_FILE_SCORES}') as db:
             table_scores = db.table(
@@ -358,12 +430,26 @@ class ThreadNecroBotCore():
 
     def get_top_10_list(self, type_id: int) -> list[table.Document]:
         """
+        Retrieves a list of top 10 users from the database
+
         fmt DB:
             "userdata" : {
                 [user_id:int] : { 'points_alltime' : float, 'points_monthly' : float, 'user_name' : str, 'post_id' : int },
                 [user_id:int] : { 'points_alltime' : float, 'points_monthly' : float, 'user_name' : str, 'post_id' : int },
                 ...
             }
+
+        Parameters
+        ----------
+        type_id : int
+            The type of points to retrieve
+            - (0) self.DB_TYPE_ALLTIME: Retrieves all time top scores
+            - (1) self.DB_TYPE_MONTHLY: Retrieves monthly top scores
+
+        Returns
+        -------
+        list[table.Document]
+            A list of top 10 user entries
         """
         key_id = 'points_alltime' if type_id == self.DB_TYPE_ALLTIME else 'points_monthly'
 
@@ -381,12 +467,19 @@ class ThreadNecroBotCore():
 
     def get_monthly_winners_list(self) -> list[table.Document]:
         """
+        Retrieves a list of monthly winners from the database
+
         fmt DB:
             'monthly_winners' : {
                 [idx:int] : { 'time' : str, 'user_id' : int, 'points' : float, 'user_name' : str},
                 [idx:int] : { 'time' : str, 'user_id' : int, 'points' : float, 'user_name' : str},
                 ...
             }
+
+        Returns
+        -------
+        list[table.Document]
+            A list of monthly winners
         """
         with tinydb.TinyDB(f'{self.__db_path}/{self.__DB_FILE_WINNERS}') as db:
             table_winners = db.table(self.__TABLE_WINNERS)
@@ -404,10 +497,18 @@ class ThreadNecroBotCore():
 
     def get_prev_post_info(self) -> table.Document:
         """
-        "prevpost" : {
-            [id:int] : { 'prev_post_id' : int, 'prev_post_time' : str, 'prev_post_user_id' : int },
-            ...
-        }
+        Retrieves info of previous ThreadNecro post from the database
+
+        fmt DB:
+            "prevpost" : {
+                [id:int] : { 'prev_post_id' : int, 'prev_post_time' : str, 'prev_post_user_id' : int },
+                ...
+            }
+
+        Returns
+        -------
+        table.Document
+            The previous post id, time, and user id
         """
         with tinydb.TinyDB(f'{self.__db_path}/{self.__DB_FILE_META}') as db:
             table_meta = db.table(self.__TABLE_META_PREV_POST)

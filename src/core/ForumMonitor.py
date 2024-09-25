@@ -214,6 +214,8 @@ class ForumMonitor(BotCore):
 
 
     def run(self):
+        self.__logger.info('Starting forum monitor...')
+
         new_post_task: Thread = None
         last_post_check = time.time()
 

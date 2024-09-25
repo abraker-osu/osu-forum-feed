@@ -25,10 +25,9 @@ def pytest_unconfigure(config: Config):
 
 
 @pytest.hookimpl
-def pytest_runtest_setup(item):
+def pytest_runtest_setup(item: pytest.Item):
     logging.getLogger('Tester').debug(f'{item.parent.name}::{item.name}')
     logging.getLogger('Tester').debug(f'{"-"*20} setup {"-"*20}')
-
 
 
 @pytest.hookimpl
@@ -37,5 +36,5 @@ def pytest_pyfunc_call(pyfuncitem):
 
 
 @pytest.hookimpl
-def pytest_runtest_teardown(item: Function):
+def pytest_runtest_teardown(item: pytest.Item):
     logging.getLogger('Tester').debug(f'{"-"*20} clean {"-"*20}')
