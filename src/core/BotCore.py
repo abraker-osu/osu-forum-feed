@@ -27,7 +27,7 @@ class BotCore():
         # Initialize the botcore database
         # Database path can be a debug path or a production path
         self._db_path = BotConfig['Core']['db_path_dbg'] if BotConfig['Core']['is_dbg'] else BotConfig['Core']['db_path']
-        os.makedirs(self._db_path, exist_ok=True)
+        os.makedirs(self._db_path, mode=0o660, exist_ok=True)
         self.check_db()
 
         # Initialize the bot modules

@@ -54,6 +54,8 @@ class ThreadNecroBotCore():
         self._n = math.log(2000.0/60.0)/math.log(24)
         self._b = 60.0/math.pow(60.0, self._n)
 
+        os.makedirs(self.__db_path, mode=0o660, exist_ok=True)
+
 
     def update_user_data(self, user_data: dict):
         """

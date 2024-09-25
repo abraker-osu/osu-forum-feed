@@ -77,7 +77,7 @@ class ForumMonitor(BotCore):
                 }
             }
         """
-        self.__logger.info('Checking db...')
+        self.__logger.info(f'Checking db at {self._db_path}/{self.__DB_FILE_BOTCORE}...')
 
         with tinydb.TinyDB(f'{self._db_path}/{self.__DB_FILE_BOTCORE}') as db:
             table = db.table(self.__TABLE_BOTCORE)

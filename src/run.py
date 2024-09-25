@@ -30,10 +30,10 @@ if __name__ == '__main__':
     bots_path     = BotConfig['Core']['bots_path']     = pathlib.Path(f'{root}/{BotConfig["Core"]["bots_path"]}')
 
     if not os.path.exists(log_path):
-        os.makedirs(log_path)
+        os.makedirs(log_path, mode=0o660)
 
     if not os.path.exists(bots_log_path):
-        os.makedirs(bots_log_path)
+        os.makedirs(bots_log_path, mode=0o660)
 
     if not os.path.exists(bots_path):
         logging.critical('Fatal Error: Bot directory not found!')
