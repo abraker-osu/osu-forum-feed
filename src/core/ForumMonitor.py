@@ -138,7 +138,7 @@ class ForumMonitor(BotCore):
             if isinstance(entry, type(None)):
                 # This should not happen as the db was checked
                 # So db may have unexpectedly modified by external means between then and now
-                raise Exception('ForumMonitor settings not found!')
+                raise BotException('ForumMonitor settings not found!')
 
             self.__logger.debug(f'FETCH latest_post id: {entry["latest_post_id"]}')
             return int(entry['latest_post_id'])
