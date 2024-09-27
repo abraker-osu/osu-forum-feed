@@ -51,7 +51,14 @@ class TestForumMonitor:
     @classmethod
     def setup_class(cls):
         cls.__logger.setLevel(logging.DEBUG)
+
+        cls.__old_get_post = SessionMgrV2.get_post
         SessionMgrV2.get_post = cls.__get_post
+
+
+    @classmethod
+    def teardown_class(cls):
+        SessionMgrV2.get_post = cls.__old_get_post
 
 
     def setup_method(self, method):
