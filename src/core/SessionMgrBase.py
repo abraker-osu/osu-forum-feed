@@ -241,6 +241,12 @@ class SessionMgrBase():
         if not page:
             page = self.fetch_web_data(post_url)
 
+        if page.url != post_url:
+            self._logger.debug(f'redirected from {post_url} to {page.url}')
+            if not 'https://osu.ppy.sh' in page.url:
+                # This should never happen, but if it does, either osu or bot server is in trouble
+                raise BotException(f'Redirected to invalid url {page.url}')
+
         # Error checking
         if page.text.find('Page Missing') != -1:
             raise BotException(f'Post with url {post_url} does not exist!')
