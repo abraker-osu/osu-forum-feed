@@ -26,7 +26,7 @@ class TestSessionV2:
     def test_sessionV2_web_read(self):
         start = time.time()
         SessionMgrV2.fetch_web_data('https://osu.ppy.sh/community/forums/topics/145250/?n=0')
-        self.__logger.info(f'Got webpage in {time.time() - start}s')
+        self.__logger.info(f'Got webpage in {(time.time() - start)*1000:.3f}ms')
 
         assert SessionMgrV2.get_last_status_code() == 200
 
