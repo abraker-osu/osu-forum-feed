@@ -86,8 +86,7 @@ class ForumMonitor(BotCore):
             if not isinstance(entry, type(None)):
                 # Check for the `latest_post_id` field
                 if not 'latest_post_id' in entry:
-                    self.__logger.warning('Forum monitor table exists but `latest_post_id` does not!')
-                    # TODO: Fill it in?
+                    self.set_latest_post(BotConfig['Core']['latest_post_id'])
 
                 self.__logger.info('db ok')
                 return
