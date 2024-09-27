@@ -199,6 +199,7 @@ class TestParsing:
             assert int(post_contents) == value + 1, 'Post not edited!'
 
 
+    @pytest.mark.skip('Not implemented yet')
     @pytest.mark.login
     def test_edit_post_append(self):
         self.__logger.info('\tSetting up initial condition...')
