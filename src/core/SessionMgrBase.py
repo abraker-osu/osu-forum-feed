@@ -250,20 +250,11 @@ class SessionMgrBase():
             raise BotException(f'Cannot access topic with url {post_url} until logged in!')
 
         topic = Topic(BeautifulSoup(page.text, 'lxml'))
-        post  = None
-
         for topic_post in topic.posts:
-            if topic_post.url != post_url:
-                continue
+            if topic_post.url == post_url:
+                return topic_post
 
-            post = topic_post
-            break
-
-        if not post:
-            msg = f'Unable to find post id {post_id} in thread id {topic.id}'
-            raise BotException(msg)
-
-        return post
+        raise BotException(f'Unable to find post id {post_id} in thread id {topic.id}')
 
 
     def get_prev_post(self, ref_post: Post) -> Optional[Post]:
@@ -282,12 +273,12 @@ class SessionMgrBase():
         """
         posts = ref_post.topic.posts
 
-        for i in range(len(posts) - 1, -1, -1):
-            if int(posts[i].id) < int(ref_post.id):
+        for post in reversed(posts):
+            if int(post.id) < int(ref_post.id):
                 # Return the first post with a lesser post id than the given one
-                return posts[i]
+                return post
 
-        return None
+        return ref_post.prev_post
 
 
     def get_next_post(self, ref_post: Post) -> Optional[Post]:

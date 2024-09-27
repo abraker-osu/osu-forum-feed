@@ -154,18 +154,14 @@ class Post():
     @cached_property
     def prev_post(self) -> "Optional[Post]":
         post_roots = self.__topic.post_roots
-        i = len(post_roots) - 1
 
-        while True:
+        for i in range(len(post_roots) - 1, -1, -1):
+            # Locate this post in the list and then get the post before this one
             post_id = Post(self.__topic, post_roots[i]).id
-            if post_id == self.id: break
-            if i <= 0: break
-            i -= 1
+            if post_id == self.id:
+                return Post(self.__topic, post_roots[i - 1])
 
-        if i == 0:
-            return None
-
-        return Post(self.__topic, post_roots[i - 1])
+        return None
 
 
     @cached_property
