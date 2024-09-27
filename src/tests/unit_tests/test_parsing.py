@@ -3,8 +3,6 @@ import pytest
 import logging
 import time
 
-import yaml
-
 from core.SessionMgrV2 import SessionMgrV2
 from core.parser import Post, Topic
 
@@ -98,34 +96,29 @@ class TestParsing:
             'post_num'  : '52030'
         }
 
-        def read_post_url_test():  post_url  = post.url;           assert str(post_url)  == expected_values['post_url']
-        def read_post_id_test():   post_id   = post.id;            assert str(post_id)   == expected_values['post_id']
-        def read_post_date_test(): post_date = post.date;          assert str(post_date) == expected_values['post_date']
-        def read_post_text_test(): post_text = post.contents_text; assert str(post_text) == expected_values['post_text']
-        def read_post_number():    post_num  = post.post_num;      assert str(post_num)  == expected_values['post_num']
-
         self.__logger.info('\t\tStarting read_post_url_test...')
         start = time.time()
-        read_post_url_test()
+        assert str(post.url) == expected_values['post_url']
         self.__logger.info(f'\t\tread_post_url_test completed in {(time.time() - start)*1000:.3f}ms')
 
         self.__logger.info('\t\tStarting read_post_id_test...')
         start = time.time()
-        read_post_id_test()
+        assert str(post.id) == expected_values['post_id']
         self.__logger.info(f'\t\ttread_post_id_test completed in {(time.time() - start)*1000:.3f}ms')
 
         self.__logger.info('\t\tStarting read_post_date_test...')
         start = time.time()
-        read_post_date_test()
+        assert str(post.date) == expected_values['post_date']
+        self.__logger.info(f'\t\tread_post_date_test completed in {(time.time() - start)*1000:.3f}ms')
 
         self.__logger.info('\t\tStarting read_post_text_test...')
         start = time.time()
-        read_post_text_test()
+        assert str(post.contents_text) == expected_values['post_text']
         self.__logger.info(f'\t\tread_post_text_test completed in {(time.time() - start)*1000:.3f}ms')
 
         self.__logger.info('\t\tStarting read_post_number...')
         start = time.time()
-        read_post_number()
+        assert str(post.post_num) == expected_values['post_num']
         self.__logger.info(f'\t\tread_post_number completed in {(time.time() - start)*1000:.3f}ms')
 
 

@@ -2,9 +2,7 @@ import pytest
 
 import logging
 import time
-
 import requests
-import yaml
 
 from core.SessionMgrV2 import SessionMgrV2
 

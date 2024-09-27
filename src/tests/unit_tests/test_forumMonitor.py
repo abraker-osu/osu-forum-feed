@@ -166,6 +166,7 @@ class TestForumMonitor:
 
         return thread_url, page
 
+
     def test_initial_conditions(self):
         """
         On start,

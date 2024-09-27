@@ -91,9 +91,12 @@ class ForumMonitor(BotCore):
                 self.__logger.info('db ok')
                 return
 
+            # [2024.09.25] TODO: Check other fields?
+
             self.__logger.info('Forum monitor db empty; Building new one...')
             table.insert(Document(
                 {
+                    # [2024.09.25] TODO: Add stat fields
                     'latest_post_id' : BotConfig['Core']['latest_post_id'],
                 },
                 ForumMonitor.__DB_ID_FORUM_MONITOR
@@ -204,7 +207,7 @@ class ForumMonitor(BotCore):
         post_url = f'https://osu.ppy.sh/community/forums/posts/{check_post_id}'
         self.__logger.debug(f'Checking post id: {check_post_id}')
 
-        # Try to get web data. If we can't due to server error, then abort and retry after some time
+        # Try to get web data. If not possible due to server error, then abort and retry after some time
         try: page = SessionMgrV2.fetch_web_data(post_url)
         except BotException:
             return None, None
@@ -221,10 +224,8 @@ class ForumMonitor(BotCore):
         warned_post_check_timeout = False
         timeout = 60*5   # 5 minutes
 
-        # Due to the checking if the task is running, there will never be more than two new_thread_task or new_post_task
-        # running at the same time. This means that bots will process one thread or post at a time
-        # \FIXME: Sudden internet disconnect creates cascade errors across everything. Need to keep on retrying
-        # \TODO: See if basing the speed on how far back the threads are will work. Would be a function of time between now and the read thread/post
+        # Due to the checking if the task is running, the bots will process one post at a time.
+        # This is desired as a preventive measure against hitting osu!web rate limits.
         while True:
             with warnings.catch_warnings(record=True) as w:
                 try:
@@ -353,7 +354,7 @@ class ForumMonitor(BotCore):
 
 
 # NOTE: For this to work for the bots it must be imported
-#   from within the functions that on this. Otherwise, if the
-#   imported from top of file, the import chain will run
-#   before this assignment is reached.
+#   from within the functions that depends on this. Otherwise,
+#   if the imported from top of file, the import chain will
+#   run before this assignment is reached.
 ForumMonitor = ForumMonitor()
