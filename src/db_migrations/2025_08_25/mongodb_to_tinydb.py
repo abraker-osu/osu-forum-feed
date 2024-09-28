@@ -1,11 +1,22 @@
 """
-Run mongodb
-
-> mongoexport --db local --collection system.indexes --out .\converted_json\local.system.indexes.json
+1. As root on server, package db files
+    $ tar -cvf /home/server/Downloads/mongodb.tar.gz mongodb
+2. As root on server, give read access to server
+    $ chown root:server /home/server/Downloads/mongodb.tar.gz
+3. On dev machine, transfer file from server
+    > scp -P <port> -r server@<ip>:/home/server/Downloads/mongodb.tar.gz .
+4. On dev machine, untar
+5. On dev machine, run mongo
+    > mongo --dbpath .\<path to untar>\mongo
+6. On dev machine, run to dump to json
+    > mongodump -d <database_name> -o <directory_backup>
+7. On dev machine, run db migration
+    > python src/db_migrations/2025_08_25/mongodb_to_tinydb.py <database_path> <output_path>
 """
 import os
 import sys
 import json
+import pathlib
 
 import tinydb
 import tinydb.table
@@ -19,7 +30,7 @@ from src.bots.ThreadNecroBot import ThreadNecroBot
 
 
 
-def migrate_botcore():
+def migrate_botcore(db_path: str, output: str):
     """
     in fmt DB:
         {
@@ -48,8 +59,8 @@ def migrate_botcore():
     TABLE_BOTCORE    = ForumMonitor._ForumMonitor__TABLE_BOTCORE
     ID_FORUM_MONITOR = ForumMonitor._ForumMonitor__DB_ID_FORUM_MONITOR
 
-    db_src = 'src\\db_migrations\\2025_08_25\\samples_in\\forum-bot.BotCore.json'
-    db_dst = 'src\\db_migrations\\2025_08_25\\samples_out\\BotCore.json'
+    db_src = pathlib.Path(f'{db_path}/BotCore.json')
+    db_dst = pathlib.Path(f'{output}/BotCore.json')
     with open(db_src) as f:
         data = json.load(f)
 
@@ -67,7 +78,7 @@ def migrate_botcore():
         ))
 
 
-def migrate_bot_threadnecrobot_logdata():
+def migrate_bot_threadnecrobot_logdata(db_path: str, output: str):
     """
     in fmt DB:
         "_id" : { "$oid" : str },
@@ -95,9 +106,9 @@ def migrate_bot_threadnecrobot_logdata():
 
     data_out = {}
 
-    db_dst = 'src\\db_migrations\\2025_08_25\\samples_out\\ThreadNecroBot_DataLogs.json'
+    db_dst = pathlib.Path(f'{output}/ThreadNecroBot_DataLogs.json')
 
-    db_src = 'src\\db_migrations\\2025_08_25\\samples_in\\forum-bot.ThreadNecroBot_LogData.json'
+    db_src = pathlib.Path(f'{db_path}/ThreadNecroBot_LogData.json')
     with open(db_src) as f:
         data = json.load(f)
 
@@ -114,7 +125,7 @@ def migrate_bot_threadnecrobot_logdata():
             'score_alltime' : float(entry['total_score']),
         })
 
-    db_src = 'src\\db_migrations\\2025_08_25\\samples_in\\forum-bot.ThreadNecroBot_LogData_monthly.json'
+    db_src = pathlib.Path(f'{db_path}/ThreadNecroBot_LogData_monthly.json')
     with open(db_src) as f:
         data = json.load(f)
 
@@ -137,11 +148,7 @@ def migrate_bot_threadnecrobot_logdata():
         table = db.table(TABLE_LOG)
         for idx, entry in data_out.items():
             table.upsert(tinydb.table.Document(entry, idx))
-
-            # Keep track of log idx, and wrap it around to max log entries
             log_idx += 1
-            if log_idx >= MAX_ENTRIES_LOGS:
-                log_idx = 0
 
         table = db.table(TABLE_LOG_META)
         table.upsert(tinydb.table.Document({
@@ -149,7 +156,7 @@ def migrate_bot_threadnecrobot_logdata():
         }, 0))
 
 
-def migrate_bot_threadnecrobot_winners():
+def migrate_bot_threadnecrobot_winners(db_path: str, output: str):
     """
     in fmt DB:
         "_id" : { "$oid" : str },
@@ -170,9 +177,9 @@ def migrate_bot_threadnecrobot_winners():
 
     TABLE_WINNERS = ThreadNecroBot._ThreadNecroBotCore__TABLE_WINNERS
 
-    db_dst = 'src\\db_migrations\\2025_08_25\\samples_out\\ThreadNecroBot_DataWinners.json'
+    db_dst = pathlib.Path(f'{output}/ThreadNecroBot_DataWinners.json')
 
-    db_src = 'src\\db_migrations\\2025_08_25\\samples_in\\forum-bot.ThreadNecroBot_MonthlyWinners.json'
+    db_src = pathlib.Path(f'{db_path}/ThreadNecroBot_MonthlyWinners.json')
     with open(db_src) as f:
         data = json.load(f)
 
@@ -187,7 +194,7 @@ def migrate_bot_threadnecrobot_winners():
             }, i))
 
 
-def migrate_bot_threadnecrobot_topscores():
+def migrate_bot_threadnecrobot_topscores(db_path: str, output: str):
     """
     in fmt DB:
         "_id" : { "$oid" : str },
@@ -209,9 +216,9 @@ def migrate_bot_threadnecrobot_topscores():
     TABLE_SCORES_ALLTIME  = ThreadNecroBot._ThreadNecroBotCore__TABLE_SCORES_ALLTIME
     TABLE_SCORES_MONTHLY  = ThreadNecroBot._ThreadNecroBotCore__TABLE_SCORES_MONTHLY
 
-    db_dst = 'src\\db_migrations\\2025_08_25\\samples_out\\ThreadNecroBot_DataScores.json'
+    db_dst = pathlib.Path(f'{output}/ThreadNecroBot_DataScores.json')
 
-    db_src = 'src\\db_migrations\\2025_08_25\\samples_in\\forum-bot.ThreadNecroBot_TopScoresData.json'
+    db_src = pathlib.Path(f'{db_path}/ThreadNecroBot_TopScoresData.json')
     with open(db_src) as f:
         data = json.load(f)
 
@@ -226,7 +233,7 @@ def migrate_bot_threadnecrobot_topscores():
                 'added_score' : float(entry['added_score']),
             }, i))
 
-    db_src = 'src\\db_migrations\\2025_08_25\\samples_in\\forum-bot.ThreadNecroBot_TopScoresData_monthly.json'
+    db_src = pathlib.Path(f'{db_path}/ThreadNecroBot_TopScoresData_monthly.json')
     with open(db_src) as f:
         data = json.load(f)
 
@@ -242,7 +249,7 @@ def migrate_bot_threadnecrobot_topscores():
             }, i))
 
 
-def migrate_bot_threadnecrobot_users():
+def migrate_bot_threadnecrobot_users(db_path: str, output: str):
     """
     in fmt DB:
         "userdata": [
@@ -261,10 +268,9 @@ def migrate_bot_threadnecrobot_users():
     print('Processing threadnecrobot_users...')
 
     data_out = {}
+    db_dst = pathlib.Path(f'{output}/ThreadNecroBot_DataUsers.json')
 
-    db_dst = 'src\\db_migrations\\2025_08_25\\samples_out\\ThreadNecroBot_DataUsers.json'
-
-    db_src = 'src\\db_migrations\\2025_08_25\\samples_in\\forum-bot.ThreadNecroBot_UserData.json'
+    db_src = pathlib.Path(f'{db_path}/ThreadNecroBot_UserData.json')
     with open(db_src) as f:
         data = json.load(f)
 
@@ -279,7 +285,7 @@ def migrate_bot_threadnecrobot_users():
             'post_id'        : int(entry['post_id'])
         })
 
-    db_src = 'src\\db_migrations\\2025_08_25\\samples_in\\forum-bot.ThreadNecroBot_UserData_monthly.json'
+    db_src = pathlib.Path(f'{db_path}/ThreadNecroBot_UserData_monthly.json')
     with open(db_src) as f:
         data = json.load(f)
 
@@ -300,9 +306,16 @@ def migrate_bot_threadnecrobot_users():
             table.upsert(tinydb.table.Document(entry, user_id))
 
 
+if __name__ == "__main__":
+    if len(sys.argv) != 3:
+        print(f'Usage: {sys.argv[0]} <db_path> <output_path>')
+        exit(1)
 
-migrate_botcore()
-migrate_bot_threadnecrobot_logdata()
-migrate_bot_threadnecrobot_winners()
-migrate_bot_threadnecrobot_topscores()
-migrate_bot_threadnecrobot_users()
+    db_path = sys.argv[1]
+    output  = sys.argv[2]
+
+    migrate_botcore(db_path, output)
+    migrate_bot_threadnecrobot_logdata(db_path, output)
+    migrate_bot_threadnecrobot_winners(db_path, output)
+    migrate_bot_threadnecrobot_topscores(db_path, output)
+    migrate_bot_threadnecrobot_users(db_path, output)
