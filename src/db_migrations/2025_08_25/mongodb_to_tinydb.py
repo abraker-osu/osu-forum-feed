@@ -95,7 +95,7 @@ def migrate_bot_threadnecrobot_logdata(db_path: str, output: str):
             ...
         },
         "log_data_meta : {
-            [type:int] : { 'idx' : int },
+            [type:int] : { 'num' : int },
         }
     """
     print('Processing threadnecrobot_logdata...')
@@ -143,16 +143,16 @@ def migrate_bot_threadnecrobot_logdata(db_path: str, output: str):
         })
 
     with tinydb.TinyDB(db_dst) as db:
-        log_idx = 0
+        num = 0
 
         table = db.table(TABLE_LOG)
         for idx, entry in data_out.items():
             table.upsert(tinydb.table.Document(entry, idx))
-            log_idx += 1
+            num = min(num + 1, MAX_ENTRIES_LOGS)
 
         table = db.table(TABLE_LOG_META)
         table.upsert(tinydb.table.Document({
-            'idx' : log_idx
+            'num' : num
         }, 0))
 
 
