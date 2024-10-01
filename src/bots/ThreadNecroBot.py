@@ -727,12 +727,16 @@ class ThreadNecroBot(BotBase, ThreadNecroBotCore):
         perm = Cmd.PERMISSION_PUBLIC,
         info = 'Retrieves the user\'s rank based on the specified user ID',
         args = {
-            'user_id' : Cmd.arg(int, False, 'User id')
+            'user_name' : Cmd.arg(str,  False, 'User name'),
+            'monthly'   : Cmd.arg(bool, True, '(optional) Monthly or all time (0 or 1)')
         })
-        def cmd_get_user_rank(self, user_id: int) -> dict:
-            rank = self.obj.get_user_rank(user_id)
-            if not rank:
+        def cmd_get_user_rank(self, user_name: str, monthly: bool = False) -> dict:
+            entry = self.obj.get_user(user_name)
+            if not entry:
                 return Cmd.err('user not found')
+
+            db_type = ThreadNecroBotCore.DB_TYPE_MONTHLY if monthly else ThreadNecroBotCore.DB_TYPE_ALLTIME
+            rank = self.obj.get_user_rank(entry.doc_id, db_type)
 
             return Cmd.ok(f'User is ranked {rank}')
 
