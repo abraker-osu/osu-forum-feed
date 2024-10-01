@@ -2,7 +2,7 @@
 Overrides any and all loggers
 """
 
-if 'global_loger' not in globals():
+if 'global_logger' not in globals():
     globals()['global_logger'] = True
 
     import sys
@@ -31,6 +31,7 @@ if 'global_loger' not in globals():
             logging.CRITICAL: f'{bold_red}%(levelname)s{reset}  {rgb(200, 50, 50)}%(asctime)s  [ %(name)s ] %(message)s{reset}'
         }
 
+
         def format(self, record: logging.LogRecord) -> str:
             """
             Formatter override
@@ -42,19 +43,18 @@ if 'global_loger' not in globals():
         """
         A logger set to have a polled stream handler and colorized formatter (windows only)
         """
-        def __init__(self, name: str = '', level: int = logging.DEBUG):
+        __sh = logging.StreamHandler()
+
+        is_win = sys.platform == 'win32'
+        if is_win:
+            __sh.setFormatter(ColorFormatter())
+        else:
+            __sh.setFormatter(logging.Formatter('%(levelname)s  %(asctime)s   [ %(name)s ] %(message)s'))
+
+
+        def __init__(self, name: str, level: int = logging.DEBUG):
             logging.Logger.__init__(self, name, level=level)
-
-            self.__sh = logging.StreamHandler()
-
-            is_win = sys.platform == 'win32'
-            if is_win:
-                self.__sh.setFormatter(ColorFormatter())
-            else:
-                self.__sh.setFormatter(logging.Formatter('%(levelname)s  %(asctime)s   [ %(name)s ] %(message)s'))
-
             self.addHandler(self.__sh)
 
 
-    logging.setLoggerClass(Logger)
-    logging.getLogger = Logger
+    Logger.manager.setLoggerClass(Logger)
