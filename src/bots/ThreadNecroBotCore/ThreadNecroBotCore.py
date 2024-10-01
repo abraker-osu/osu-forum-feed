@@ -120,16 +120,20 @@ class ThreadNecroBotCore():
         score_alltime = self.get_user_points(log_data['user_id'], self.DB_TYPE_ALLTIME)
         score_monthly = self.get_user_points(log_data['user_id'], self.DB_TYPE_MONTHLY)
 
-        num = 0
-
         with tinydb.TinyDB(f'{self.__db_path}/{self.__DB_FILE_LOGS}') as db:
             table_meta = db.table(self.__TABLE_LOGS_META)
 
+            # Get number of monthly log entries
             entry = table_meta.get(doc_id=self.DB_TYPE_MONTHLY)
             try:  num = entry['num']
             except ( KeyError, TypeError ):
-                pass
+                num = 0
 
+            # Update num metadata entry
+            num = min(num + 1, self.__MAX_ENTRIES_LOGS)
+            table_meta.update(table.Document({ 'num' : num }, doc_id=self.DB_TYPE_MONTHLY))
+
+            # Add log entry
             log_data.update({
                 'score_alltime' : score_alltime,
                 'score_monthly' : score_monthly
@@ -137,10 +141,6 @@ class ThreadNecroBotCore():
 
             table_log = db.table(self.__TABLE_LOGS)
             table_log.insert(log_data)
-
-            num = min(num + 1, self.__MAX_ENTRIES_LOGS)
-            table_meta.update(table.Document({ 'num' : num }, doc_id=self.DB_TYPE_MONTHLY))
-
 
 
     def update_top_score_data(self, new_score_data: dict):
@@ -492,7 +492,10 @@ class ThreadNecroBotCore():
             table_scores.truncate()
 
         with tinydb.TinyDB(f'{self.__db_path}/{self.__DB_FILE_LOGS}') as db:
-            table_logs = db.table(self.__TABLE_LOGS)
+            table_logs_meta = db.table(self.__TABLE_LOGS_META)
+            table_logs_meta.upsert(table.Document({
+                'num' : 0
+            }, doc_id=0))
 
 
     def get_prev_post_info(self) -> table.Document:
