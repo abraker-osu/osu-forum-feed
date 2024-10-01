@@ -282,7 +282,8 @@ def migrate_bot_threadnecrobot_users(db_path: str, output: str):
         data_out[user_id].update({
             'user_name'      : str(entry['user_name']),
             'points_alltime' : float(entry['points']),
-            'post_id'        : int(entry['post_id'])
+            'post_id'        : int(entry['post_id']),
+            'points_monthly' : float(0),  # Default to 0
         })
 
     db_src = pathlib.Path(f'{db_path}/ThreadNecroBot_UserData_monthly.json')
