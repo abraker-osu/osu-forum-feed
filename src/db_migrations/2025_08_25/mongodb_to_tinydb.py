@@ -327,7 +327,7 @@ def migrate_bot_threadnecrobot_metadata(db_path: str, output: str):
 
     TABLE_META_PREV_POST = ThreadNecroBot._ThreadNecroBotCore__TABLE_META_PREV_POST
 
-    db_dst = pathlib.Path(f'{output}/ThreadNecroBot_Metadata.json')
+    db_dst = pathlib.Path(f'{output}/ThreadNecroBot_DataMeta.json')
 
     db_src = pathlib.Path(f'{db_path}/ThreadNecroBot_LogData.json')
     with open(db_src) as f:
