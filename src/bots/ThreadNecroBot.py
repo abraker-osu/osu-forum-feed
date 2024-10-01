@@ -73,7 +73,7 @@ class ThreadNecroBot(BotBase, ThreadNecroBotCore):
             'prev_user_name' : post.prev_post.creator.name
         }
 
-        self.process_monthly_winner_event()
+        self.process_monthly_winner_event(data)
 
         # Prev user must be processes before current user
         # Also prev user processing won't work unless it's the same thread
@@ -216,35 +216,44 @@ class ThreadNecroBot(BotBase, ThreadNecroBotCore):
         return self._b * math.pow(seconds_passed/60.0, self._n)
 
 
-    def process_monthly_winner_event(self):
-        current_date = datetime.datetime.now().replace(tzinfo=None)
+    def process_monthly_winner_event(self, data: dict):
+        """
+        fmt `data`:
+            {
+                'curr_post_id'   : int,
+                'prev_post_id'   : int,
+                'curr_post_time' : int,
+                'prev_post_time' : int,
+                'curr_user_id'   : int,
+                'prev_user_id'   : int,
+                'curr_user_name' : str,
+                'prev_user_name' : str
+            }
+
+        fmt monthly winners:
+            [
+                { 'time' : str, 'user_id' : int, 'points' : float, 'user_name' : str},
+                { 'time' : str, 'user_id' : int, 'points' : float, 'user_name' : str},
+                ...
+            ]
+        """
         monthly_winners_list = self.get_monthly_winners_list()
-
         if not monthly_winners_list:
-            starting_date = SessionMgrV2.get_post(self.main_post).date.replace(tzinfo=None)
+            starting_date = self.main_post.date.replace(tzinfo=None)
             next_date     = starting_date + relativedelta(months=1)
-
-            current_delta = current_date - starting_date
-            target_delta  = next_date - starting_date
-
-            if current_delta >= target_delta:
-                self.update_monthly_winners()
-                self.reset_monthly_data()
-
-                self.logger.info('Monthly winner recorded; New Monthly Chart made!')
-
         else:
             previous_date = parse(monthly_winners_list[-1]['time']).replace(tzinfo=None)
             next_date     = previous_date + relativedelta(months=1)
 
-            current_delta = current_date - previous_date
-            target_delta  = next_date - previous_date
+        current_date  = data['curr_post_time'].replace(tzinfo=None)
+        current_delta = current_date - previous_date
+        target_delta  = next_date    - previous_date
 
-            if current_delta >= target_delta:
-                self.update_monthly_winners()
-                self.reset_monthly_data()
+        if current_delta >= target_delta:
+            self.update_monthly_winners()
+            self.reset_monthly_data()
 
-                self.logger.info('Monthly winner recorded; New Monthly Chart made!')
+            self.logger.info('Monthly winner recorded; New Monthly Chart made!')
 
 
     def process_prev_user(self, data: dict):
