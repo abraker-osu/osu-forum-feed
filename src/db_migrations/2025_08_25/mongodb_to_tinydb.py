@@ -307,6 +307,44 @@ def migrate_bot_threadnecrobot_users(db_path: str, output: str):
             table.upsert(tinydb.table.Document(entry, user_id))
 
 
+def migrate_bot_threadnecrobot_metadata(db_path: str, output: str):
+    """
+    in fmt DB:
+        "_id" : { "$oid" : str },
+        "log_data" : [
+            { "time" : str, "user_name" : str, "user_id" : str, "post_id" : str, "added_score" : str, "total_score" : str },
+            { "time" : str, "user_name" : str, "user_id" : str, "post_id" : str, "added_score" : str, "total_score" : str },
+            ...
+        ]
+
+    out fmt DB:
+        "prevpost" : {
+            [id:int] : { 'prev_post_id' : int, 'prev_post_time' : str, 'prev_post_user_id' : int },
+            ...
+        }
+    """
+    print('Processing threadnecrobot_metadata...')
+
+    TABLE_META_PREV_POST = ThreadNecroBot._ThreadNecroBotCore__TABLE_META_PREV_POST
+
+    db_dst = pathlib.Path(f'{output}/ThreadNecroBot_Metadata.json')
+
+    db_src = pathlib.Path(f'{db_path}/ThreadNecroBot_LogData.json')
+    with open(db_src) as f:
+        data = json.load(f)
+
+    max_post_entry = max(data['log_data'], key=lambda x: int(x['post_id']))
+
+    with tinydb.TinyDB(db_dst) as db:
+        table_meta = db.table(TABLE_META_PREV_POST)
+        table_meta.upsert(tinydb.table.Document({
+            'prev_post_id'      : int(max_post_entry['post_id']),
+            'prev_post_time'    : str(max_post_entry['time']),
+            'prev_post_user_id' : int(max_post_entry['user_id']),
+        }, doc_id=0))
+
+
+
 if __name__ == "__main__":
     if len(sys.argv) != 3:
         print(f'Usage: {sys.argv[0]} <db_path> <output_path>')
@@ -320,3 +358,4 @@ if __name__ == "__main__":
     migrate_bot_threadnecrobot_winners(db_path, output)
     migrate_bot_threadnecrobot_topscores(db_path, output)
     migrate_bot_threadnecrobot_users(db_path, output)
+    migrate_bot_threadnecrobot_metadata(db_path, output)
