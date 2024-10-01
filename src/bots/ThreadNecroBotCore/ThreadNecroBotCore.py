@@ -188,8 +188,8 @@ class ThreadNecroBotCore():
         3. Update table
 
         'monthly_winners' : {
-            [idx:int] : { 'time' : str, 'user_id' : int, 'points' : float, 'user_name' : str },
-            [idx:int] : { 'time' : str, 'user_id' : int, 'points' : float, 'user_name' : str },
+            [idx:int] : { 'time' : str, 'user_id' : int, 'user_name' : str, 'points' : float },
+            [idx:int] : { 'time' : str, 'user_id' : int, 'user_name' : str, 'points' : float },
             ...
         }
         """
@@ -211,7 +211,12 @@ class ThreadNecroBotCore():
 
         with tinydb.TinyDB(f'{self.__db_path}/{self.__DB_FILE_WINNERS}') as db:
             table_winners = db.table(self.__TABLE_WINNERS)
-            table_winners.insert(monthly_winner)
+            table_winners.upsert(table.Document({
+                'time'      : monthly_winner['time'],
+                'user_id'   : monthly_winner.doc_id,
+                'user_name' : monthly_winner['user_name'],
+                'points'    : monthly_winner['points_monthly'],
+            }, len(table_winners)))
 
 
     def update_metadata(self, data: dict):
