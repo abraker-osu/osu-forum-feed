@@ -46,7 +46,7 @@ class ThreadNecroBotCore():
     __TABLE_META_PREV_POST  = 'prevpost'
 
     __MAX_ENTRIES_LOGS      = 10
-    __MAX_ENTRIES_TOP_SCORE = 10
+    __MAX_ENTRIES_TOP_SCORE = 100
 
     def __init__(self, db_path: str):
         self.__db_path = db_path
@@ -130,8 +130,7 @@ class ThreadNecroBotCore():
                 num = 0
 
             # Update num metadata entry
-            num = min(num + 1, self.__MAX_ENTRIES_LOGS)
-            table_meta.update(table.Document({ 'num' : num }, doc_id=self.DB_TYPE_MONTHLY))
+            table_meta.update(table.Document({ 'num' : num + 1 }, doc_id=self.DB_TYPE_MONTHLY))
 
             # Add log entry
             log_data.update({
@@ -163,11 +162,12 @@ class ThreadNecroBotCore():
             for table_name in [ self.__TABLE_SCORES_ALLTIME, self.__TABLE_SCORES_MONTHLY ]:
                 table_scores = db.table(table_name)
 
+                # Limit number of top scores in db
                 if len(table_scores) < self.__MAX_ENTRIES_TOP_SCORE:
-                    # Limit number of top scores in db
-                    table_scores.insert(new_score_data)
+                    table_scores.insert(table.Document(new_score_data, doc_id=len(table_scores)))
                     return
 
+                # Search for lowest added score and replace if new score is greater
                 entries = table_scores.all()
 
                 min_idx = min(range(len(entries)), key=lambda i: float(entries.__getitem__(i)['added_score']))
@@ -230,7 +230,7 @@ class ThreadNecroBotCore():
                 ...
             }
         """
-        with tinydb.TinyDB(f'{self.__db_path}/{self.__DB_FILE_USERS}') as db:
+        with tinydb.TinyDB(f'{self.__db_path}/{self.__DB_FILE_META}') as db:
             table_meta = db.table(self.__TABLE_META_PREV_POST)
             table_meta.upsert(table.Document({
                 'prev_post_id'      : data['post_id'],
@@ -458,6 +458,20 @@ class ThreadNecroBotCore():
         """
         key_id = 'points_alltime' if type_id == self.DB_TYPE_ALLTIME else 'points_monthly'
 
+        if type_id == self.DB_TYPE_ALLTIME:
+            num = self.__MAX_ENTRIES_TOP_SCORE
+        else:
+            # Get number of monthly entries
+            with tinydb.TinyDB(f'{self.__db_path}/{self.__DB_FILE_LOGS}') as db:
+                table_meta = db.table(self.__TABLE_LOGS_META)
+
+                try: num = table_meta.get(doc_id=0)['num']
+                except ( KeyError, TypeError ):
+                    num = 0
+
+        # Cap number of entries
+        num = min(num, self.__MAX_ENTRIES_TOP_SCORE)
+
         with tinydb.TinyDB(f'{self.__db_path}/{self.__DB_FILE_USERS}') as db:
             table_users = db.table(self.__TABLE_USERS)
 
@@ -467,7 +481,7 @@ class ThreadNecroBotCore():
                 reverse = True
             )
 
-            return ranked_entries[:self.__MAX_ENTRIES_TOP_SCORE]
+            return ranked_entries[:num]
 
 
     def get_monthly_winners_list(self) -> list[table.Document]:

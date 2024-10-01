@@ -23,13 +23,18 @@ class ThreadNecroBot(BotBase, ThreadNecroBotCore):
 
     __SUBFORUM_ID = 68
 
+    __MAX_ENTRIES_LOGS              = 10
+    __MAX_ENTRIES_TOP_SCORE_MONTHLY = 10
+    __MAX_ENTRIES_TOP_SCORE_ALLTIME = 100
+
     def __init__(self):
         BotBase.__init__(self, self.BotCmd, self.__class__.__name__, enable=True)
 
         is_dbg = BotConfig['Core']['is_dbg']
 
-        self.topic_id  = BotConfig['ThreadNecroBot']['topic_id_dbg'] if is_dbg else BotConfig['ThreadNecroBot']['topic_id']
-        self.main_post = BotConfig['ThreadNecroBot']['post_id_dbg']  if is_dbg else BotConfig['ThreadNecroBot']['post_id']
+        self.topic_id        = BotConfig['ThreadNecroBot']['topic_id_dbg'] if is_dbg else BotConfig['ThreadNecroBot']['topic_id']
+        self.main_post_id    = BotConfig['ThreadNecroBot']['post_id_dbg']  if is_dbg else BotConfig['ThreadNecroBot']['post_id']
+        self.main_post: Post = SessionMgrV2.get_post(self.main_post_id)
 
         self.banned    = set()    # \TODO: this needs to go into db
 
@@ -144,7 +149,7 @@ class ThreadNecroBot(BotBase, ThreadNecroBotCore):
             log_monthly_text,
             monthly_winners_text
         )
-        SessionMgrV2.edit_post(self.main_post, post_content, append=False)
+        SessionMgrV2.edit_post(self.main_post_id, post_content, append=False)
 
 
     def calculate_score_gained_prev_user(self, prev_post_info: dict, data: dict):
@@ -470,17 +475,21 @@ class ThreadNecroBot(BotBase, ThreadNecroBotCore):
 
 
     def get_top_scores_text(self, db_type: int):
-        top_scores_list = self.get_top_scores_list(db_type)
+        max_entries = self.__MAX_ENTRIES_TOP_SCORE_ALLTIME if ( db_type == self.DB_TYPE_ALLTIME ) else self.__MAX_ENTRIES_TOP_SCORE_MONTHLY
 
+        top_scores_list = self.get_top_scores_list(db_type)
+        top_scores_list = top_scores_list[:max_entries]
+
+        # Determine the longers username in the top scores list for text alignment
         longest_username = 0
         for top_score in top_scores_list:
             longest_username = max(longest_username, len(top_score['user_name']))
 
-        top_scores_format = '#{0:<%d} {1} {2:<%d}: {3} pts' % (2, longest_username)
+        top_scores_format = '#{0:<%d} {1} {2:<%d}    {3} pts' % (3, longest_username)
         top_scores_text   = ''
 
-        for i in range(len(top_scores_list)):
-            text = top_scores_format.format(i + 1, top_scores_list[i]['time'], top_scores_list[i]['user_name'] , top_scores_list[i]['added_score'])
+        for i, entry in enumerate(top_scores_list):
+            text = top_scores_format.format(i + 1, entry['time'], entry['user_name'] , entry['added_score'])
             top_scores_text += text + '\n'
 
         if top_scores_text == '':
@@ -497,7 +506,7 @@ class ThreadNecroBot(BotBase, ThreadNecroBotCore):
         for user in top_10_list:
             longest_username = max(longest_username, len(user['user_name']))
 
-        top_10_format = '#{0:<%d} {1:<%d}: {2} pts' % (2, longest_username)
+        top_10_format = '#{0:<%d} {1:<%d}   {2} pts' % (2, longest_username)
         top_10_text   = ''
 
         for i in range(len(top_10_list)):
@@ -517,7 +526,7 @@ class ThreadNecroBot(BotBase, ThreadNecroBotCore):
         for user in monthly_winners_list:
             longest_username = max(longest_username, len(user['user_name']))
 
-        monthly_winners_format = '{0} {1:<%d}: {2} pts' % (longest_username)
+        monthly_winners_format = '{0} {1:<%d}   {2} pts' % (longest_username)
         monthly_winners_text   = ''
 
         # Generate log lines
@@ -611,7 +620,6 @@ class ThreadNecroBot(BotBase, ThreadNecroBotCore):
                 f'{i:>3}: [{entry["time"]:<16}] {entry["user_name"]:<16} | all time: {entry["score_alltime"]:>8.3f} pts   monthly: {entry["score_monthly"]:>8.3f} pts\n'
                 for i, entry in enumerate(entries)
             ))
-
 
 
         @Cmd.help(
