@@ -39,5 +39,11 @@ if __name__ == '__main__':
         logging.critical('Fatal Error: Bot directory not found!')
         exit(404)
 
+    # This logger is annoying and doesn't offer much useful info
+    logger = logging.getLogger('ossapi.ossapiv2')
+    logger.setLevel(logging.CRITICAL)
+    logger.propagate = False
+    logger.disabled  = True
+
     # \TODO: Consider this: http://www.bbarrows.com/blog/2012/09/24/implementing-exception-logging-in-python/
     ForumMonitor.run()
