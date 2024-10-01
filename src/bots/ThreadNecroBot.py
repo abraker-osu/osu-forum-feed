@@ -25,7 +25,7 @@ class ThreadNecroBot(BotBase, ThreadNecroBotCore):
 
     __MAX_ENTRIES_LOGS              = 10
     __MAX_ENTRIES_TOP_SCORE_MONTHLY = 10
-    __MAX_ENTRIES_TOP_SCORE_ALLTIME = 100
+    __MAX_ENTRIES_TOP_SCORE_ALLTIME = 25
 
     def __init__(self):
         BotBase.__init__(self, self.BotCmd, self.__class__.__name__, enable=True)
@@ -465,7 +465,7 @@ class ThreadNecroBot(BotBase, ThreadNecroBotCore):
         log_text = ''
 
         # Generate log lines
-        for log_data in log_list[:]:
+        for log_data in log_list[:self.__MAX_ENTRIES_LOGS]:
             log_text += self.generate_log_line(log_data, log_list) + '\n'
 
         if log_text == '':
@@ -499,18 +499,21 @@ class ThreadNecroBot(BotBase, ThreadNecroBotCore):
 
 
     def get_top_10_text(self, db_type: int):
-        pts_key = 'points_alltime' if ( db_type == self.DB_TYPE_ALLTIME ) else 'points_monthly'
-        top_10_list = self.get_top_10_list(db_type)
+        max_entries = self.__MAX_ENTRIES_TOP_SCORE_ALLTIME if ( db_type == self.DB_TYPE_ALLTIME ) else self.__MAX_ENTRIES_TOP_SCORE_MONTHLY
+        ranked_list = self.get_ranked_list(db_type)
 
         longest_username = 0
-        for user in top_10_list:
+        for user in ranked_list:
             longest_username = max(longest_username, len(user['user_name']))
 
         top_10_format = '#{0:<%d} {1:<%d}   {2} pts' % (2, longest_username)
         top_10_text   = ''
 
-        for i in range(len(top_10_list)):
-            text = top_10_format.format(i + 1, top_10_list[i]['user_name'], top_10_list[i][pts_key])
+        for i, entry in enumerate(ranked_list):
+            if i >= max_entries:
+                break
+
+            text = top_10_format.format(i + 1, entry['user_name'], entry['points'])
             top_10_text += text + '\n'
 
         if top_10_text == '':
@@ -632,9 +635,19 @@ class ThreadNecroBot(BotBase, ThreadNecroBotCore):
         def cmd_add_user_points(self, user_name: str, points: float) -> dict:
             """
             fmt DB:
-                "userdata" : {
-                    [user_id:int] : { 'points_alltime' : float, 'points_monthly' : float, 'user_name' : str, 'post_id' : int },
-                    [user_id:int] : { 'points_alltime' : float, 'points_monthly' : float, 'user_name' : str, 'post_id' : int },
+                "user_data" : {
+                    [user_id:int] : { 'user_name' : str, 'post_id' : int },
+                    [user_id:int] : { 'user_name' : str, 'post_id' : int },
+                    ...
+                },
+                "user_points_alltime" : {
+                    [user_id:int] : { 'points' : float },
+                    [user_id:int] : { 'points' : float },
+                    ...
+                },
+                "user_points_monthly" : {
+                    [user_id:int] : { 'points' : float },
+                    [user_id:int] : { 'points' : float },
                     ...
                 }
             """
