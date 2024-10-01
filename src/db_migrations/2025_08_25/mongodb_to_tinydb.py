@@ -259,31 +259,53 @@ def migrate_bot_threadnecrobot_users(db_path: str, output: str):
         ]
 
     out fmt DB:
-        "userdata" : {
-            [user_id:int] : { 'points_alltime' : float, 'points_monthly' : float, 'user_name' : str, 'post_id' : int },
-            [user_id:int] : { 'points_alltime' : float, 'points_monthly' : float, 'user_name' : str, 'post_id' : int },
+        "user_data" : {
+            [user_id:int] : { 'user_name' : str, 'post_id' : int },
+            [user_id:int] : { 'user_name' : str, 'post_id' : int },
+            ...
+        },
+        "user_points_alltime" : {
+            [user_id:int] : { 'points' : float },
+            [user_id:int] : { 'points' : float },
+            ...
+        },
+        "user_points_monthly" : {
+            [user_id:int] : { 'points' : float },
+            [user_id:int] : { 'points' : float },
             ...
         }
     """
     print('Processing threadnecrobot_users...')
+    TABLE_USERS_DATA    = ThreadNecroBot._ThreadNecroBotCore__TABLE_USERS_DATA
+    TABLE_USERS_ALLTIME = ThreadNecroBot._ThreadNecroBotCore__TABLE_USERS_ALLTIME
+    TABLE_USERS_MONTHLY = ThreadNecroBot._ThreadNecroBotCore__TABLE_USERS_MONTHLY
 
-    data_out = {}
+    data_out_data    = {}
+    data_out_alltime = {}
+    data_out_monthly = {}
+
     db_dst = pathlib.Path(f'{output}/ThreadNecroBot_DataUsers.json')
 
     db_src = pathlib.Path(f'{db_path}/ThreadNecroBot_UserData.json')
     with open(db_src) as f:
         data = json.load(f)
 
+    # Go through old data and populate the new data
     for entry in data['userdata']:
         user_id = entry['user_id']
-        if not entry['user_id'] in data_out:
-            data_out[user_id] = {}
+        if not user_id in data_out_data:    data_out_data[user_id]    = {}
+        if not user_id in data_out_alltime: data_out_alltime[user_id] = {}
+        if not user_id in data_out_monthly: data_out_monthly[user_id] = {}
 
-        data_out[user_id].update({
+        data_out_data[user_id].update({
             'user_name'      : str(entry['user_name']),
-            'points_alltime' : float(entry['points']),
             'post_id'        : int(entry['post_id']),
-            'points_monthly' : float(0),  # Default to 0
+        })
+        data_out_alltime[user_id].update({
+            'points' : float(entry['points']),
+        })
+        data_out_monthly[user_id].update({
+            'points' : float(0),  # Default to 0
         })
 
     db_src = pathlib.Path(f'{db_path}/ThreadNecroBot_UserData_monthly.json')
@@ -292,18 +314,28 @@ def migrate_bot_threadnecrobot_users(db_path: str, output: str):
 
     for entry in data['userdata']:
         user_id = entry['user_id']
-        if not entry['user_id'] in data_out:
-            data_out[user_id] = {}
+        if not user_id in data_out_data:    data_out_data[user_id]    = {}
+        if not user_id in data_out_monthly: data_out_monthly[user_id] = {}
 
-        data_out[user_id].update({
+        data_out_data[user_id].update({
             'user_name'      : str(entry['user_name']),
-            'points_monthly' : float(entry['points']),
-            'post_id'        : int(entry['post_id'])
+            'post_id'        : int(entry['post_id']),
+        })
+        data_out_monthly[user_id].update({
+            'points' : float(entry['points']),
         })
 
     with tinydb.TinyDB(db_dst) as db:
-        table = db.table('userdata')
-        for user_id, entry in data_out.items():
+        table = db.table(TABLE_USERS_DATA)
+        for user_id, entry in data_out_data.items():
+            table.upsert(tinydb.table.Document(entry, user_id))
+
+        table = db.table(TABLE_USERS_ALLTIME)
+        for user_id, entry in data_out_alltime.items():
+            table.upsert(tinydb.table.Document(entry, user_id))
+
+        table = db.table(TABLE_USERS_MONTHLY)
+        for user_id, entry in data_out_monthly.items():
             table.upsert(tinydb.table.Document(entry, user_id))
 
 

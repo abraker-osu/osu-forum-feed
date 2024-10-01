@@ -42,7 +42,9 @@ class ThreadNecroBotCore():
     __TABLE_SCORES_ALLTIME  = 'top_scores'
     __TABLE_SCORES_MONTHLY  = 'top_scores_monthly'
     __TABLE_WINNERS         = 'monthly_winners'
-    __TABLE_USERS           = 'userdata'
+    __TABLE_USERS_DATA      = 'user_data'
+    __TABLE_USERS_ALLTIME   = 'user_points_alltime'
+    __TABLE_USERS_MONTHLY   = 'user_points_monthly'
     __TABLE_META_PREV_POST  = 'prevpost'
 
     __MAX_ENTRIES_LOGS      = 10
@@ -70,9 +72,19 @@ class ThreadNecroBotCore():
             { 'added_score' : float, 'user_id' : int, 'user_name' : str, 'post_id' : int }
 
         fmt DB:
-            "userdata" : {
-                [user_id:int] : { 'points_alltime' : float, 'points_monthly' : float, 'user_name' : str, 'post_id' : int },
-                [user_id:int] : { 'points_alltime' : float, 'points_monthly' : float, 'user_name' : str, 'post_id' : int },
+            "user_data" : {
+                [user_id:int] : { 'user_name' : str, 'post_id' : int },
+                [user_id:int] : { 'user_name' : str, 'post_id' : int },
+                ...
+            },
+            "user_points_alltime" : {
+                [user_id:int] : { 'points' : float },
+                [user_id:int] : { 'points' : float },
+                ...
+            },
+            "user_points_monthly" : {
+                [user_id:int] : { 'points' : float },
+                [user_id:int] : { 'points' : float },
                 ...
             }
         """
@@ -84,17 +96,24 @@ class ThreadNecroBotCore():
         points_monthly += float(user_data['added_score'])
         points_monthly = f'{points_monthly:.3f}'
 
+        uid = int(user_data['user_id'])
+
         with tinydb.TinyDB(f'{self.__db_path}/{self.__DB_FILE_USERS}') as db:
-            table_user = db.table(self.__TABLE_USERS)
-            table_user.upsert(table.Document(
-                {
-                    'points_alltime' : float(points_alltime),
-                    'points_monthly' : float(points_monthly),
-                    'user_name'      : str(user_data['user_name']),
-                    'post_id'        : int(user_data['post_id'])
-                },
-                doc_id = int(user_data['user_id'])
-            ))
+            table_user = db.table(self.__TABLE_USERS_DATA)
+            table_user.upsert(table.Document({
+                'user_name' : str(user_data['user_name']),
+                'post_id'   : int(user_data['post_id'])
+            }, doc_id = uid))
+
+            table_user = db.table(self.__TABLE_USERS_ALLTIME)
+            table_user.upsert(table.Document({
+                'points' : float(points_alltime),
+            }, doc_id = uid))
+
+            table_user = db.table(self.__TABLE_USERS_MONTHLY)
+            table_user.upsert(table.Document({
+                'points' : float(points_monthly)
+            }, doc_id = uid))
 
 
     def update_log_data(self, log_data: dict):
@@ -242,17 +261,41 @@ class ThreadNecroBotCore():
     def get_user(self, user_name: str) -> table.Document:
         """
         fmt DB:
-            "userdata" : {
-                [user_id:int] : { 'points_alltime' : float, 'points_monthly' : float, 'user_name' : str, 'post_id' : int },
-                [user_id:int] : { 'points_alltime' : float, 'points_monthly' : float, 'user_name' : str, 'post_id' : int },
+            "user_data" : {
+                [user_id:int] : { 'user_name' : str, 'post_id' : int },
+                [user_id:int] : { 'user_name' : str, 'post_id' : int },
+                ...
+            },
+            "user_points_alltime" : {
+                [user_id:int] : { 'points' : float },
+                [user_id:int] : { 'points' : float },
+                ...
+            },
+            "user_points_monthly" : {
+                [user_id:int] : { 'points' : float },
+                [user_id:int] : { 'points' : float },
                 ...
             }
         """
         query = tinydb.Query()
 
         with tinydb.TinyDB(f'{self.__db_path}/{self.__DB_FILE_USERS}') as db:
-            table_users = db.table(self.__TABLE_USERS)
-            return table_users.get(query['user_name'] == user_name)
+            table_users = db.table(self.__TABLE_USERS_DATA)
+            entry = table_users.get(query['user_name'] == user_name)
+            if not entry:
+                return None
+
+            table_users = db.table(self.__TABLE_USERS_ALLTIME)
+            entry.update({
+                'points_alltime' : table_users.get(doc_id=entry.doc_id)['points'],
+            })
+
+            table_users = db.table(self.__TABLE_USERS_MONTHLY)
+            entry.update({
+                'points_monthly' : table_users.get(doc_id=entry.doc_id)['points'],
+            })
+
+        return entry
 
 
     def get_user_points(self, user_id: str | int, type_id: int) -> float:
@@ -260,9 +303,19 @@ class ThreadNecroBotCore():
         Gets the number of points the user has from the database
 
         fmt DB:
-            "userdata" : {
-                [user_id:int] : { 'points_alltime' : float, 'points_monthly' : float, 'user_name' : str, 'post_id' : int },
-                [user_id:int] : { 'points_alltime' : float, 'points_monthly' : float, 'user_name' : str, 'post_id' : int },
+            "user_data" : {
+                [user_id:int] : { 'user_name' : str, 'post_id' : int },
+                [user_id:int] : { 'user_name' : str, 'post_id' : int },
+                ...
+            },
+            "user_points_alltime" : {
+                [user_id:int] : { 'points' : float },
+                [user_id:int] : { 'points' : float },
+                ...
+            },
+            "user_points_monthly" : {
+                [user_id:int] : { 'points' : float },
+                [user_id:int] : { 'points' : float },
                 ...
             }
 
@@ -281,13 +334,13 @@ class ThreadNecroBotCore():
         float
             The number of points the user has
         """
-        key_id = 'points_alltime' if type_id == self.DB_TYPE_ALLTIME else 'points_monthly'
+        table = self.__TABLE_USERS_ALLTIME if type_id == self.DB_TYPE_ALLTIME else self.__TABLE_USERS_MONTHLY
 
         with tinydb.TinyDB(f'{self.__db_path}/{self.__DB_FILE_USERS}') as db:
-            table_users = db.table(self.__TABLE_USERS)
-            entry = table_users.get(doc_id=int(user_id))
+            table_users = db.table(table)
+            entry = table_users.get(doc_id = int(user_id))
 
-            try: return entry[key_id]
+            try: return entry['points']
             except ( TypeError, KeyError ):
                 return 0
 
@@ -297,9 +350,19 @@ class ThreadNecroBotCore():
         Gets the rank of the user from the database
 
         fmt DB:
-            "userdata" : {
-                [user_id:int] : { 'points_alltime' : float, 'points_monthly' : float, 'user_name' : str, 'post_id' : int },
-                [user_id:int] : { 'points_alltime' : float, 'points_monthly' : float, 'user_name' : str, 'post_id' : int },
+            "user_data" : {
+                [user_id:int] : { 'user_name' : str, 'post_id' : int },
+                [user_id:int] : { 'user_name' : str, 'post_id' : int },
+                ...
+            },
+            "user_points_alltime" : {
+                [user_id:int] : { 'points' : float },
+                [user_id:int] : { 'points' : float },
+                ...
+            },
+            "user_points_monthly" : {
+                [user_id:int] : { 'points' : float },
+                [user_id:int] : { 'points' : float },
                 ...
             }
 
@@ -318,17 +381,17 @@ class ThreadNecroBotCore():
         int | None
             The rank of the user or None if the user is not found
         """
-        key_id = 'points_alltime' if type_id == self.DB_TYPE_ALLTIME else 'points_monthly'
+        table = self.__TABLE_USERS_ALLTIME if type_id == self.DB_TYPE_ALLTIME else self.__TABLE_USERS_MONTHLY
 
         with tinydb.TinyDB(f'{self.__db_path}/{self.__DB_FILE_USERS}') as db:
-            table_users = db.table(self.__TABLE_USERS)
+            table_users = db.table(table)
 
             entries = table_users.all()
             ranked_uids = list([
                 int(entry.doc_id) for entry in
                 sorted(
                     entries,
-                    key = lambda entry: float(entry[key_id]),
+                    key = lambda entry: float(entry['points']),
                     reverse = True
                 )
             ])
@@ -433,14 +496,24 @@ class ThreadNecroBotCore():
             )
 
 
-    def get_top_10_list(self, type_id: int) -> list[table.Document]:
+    def get_ranked_list(self, type_id: int) -> list[table.Document]:
         """
-        Retrieves a list of top 10 users from the database
+        Retrieves a list of users from the database ranked in order of points
 
         fmt DB:
-            "userdata" : {
-                [user_id:int] : { 'points_alltime' : float, 'points_monthly' : float, 'user_name' : str, 'post_id' : int },
-                [user_id:int] : { 'points_alltime' : float, 'points_monthly' : float, 'user_name' : str, 'post_id' : int },
+            "user_data" : {
+                [user_id:int] : { 'user_name' : str, 'post_id' : int },
+                [user_id:int] : { 'user_name' : str, 'post_id' : int },
+                ...
+            },
+            "user_points_alltime" : {
+                [user_id:int] : { 'points' : float },
+                [user_id:int] : { 'points' : float },
+                ...
+            },
+            "user_points_monthly" : {
+                [user_id:int] : { 'points' : float },
+                [user_id:int] : { 'points' : float },
                 ...
             }
 
@@ -454,34 +527,31 @@ class ThreadNecroBotCore():
         Returns
         -------
         list[table.Document]
-            A list of top 10 user entries
+            A sorted list user entries by points
+            fmt:
+                [
+                    { 'user_name' : str, 'points' : float },
+                    { 'user_name' : str, 'points' : float },
+                    ...
+                ]
         """
-        key_id = 'points_alltime' if type_id == self.DB_TYPE_ALLTIME else 'points_monthly'
-
-        if type_id == self.DB_TYPE_ALLTIME:
-            num = self.__MAX_ENTRIES_TOP_SCORE
-        else:
-            # Get number of monthly entries
-            with tinydb.TinyDB(f'{self.__db_path}/{self.__DB_FILE_LOGS}') as db:
-                table_meta = db.table(self.__TABLE_LOGS_META)
-
-                try: num = table_meta.get(doc_id=0)['num']
-                except ( KeyError, TypeError ):
-                    num = 0
-
-        # Cap number of entries
-        num = min(num, self.__MAX_ENTRIES_TOP_SCORE)
+        table = self.__TABLE_USERS_ALLTIME if type_id == self.DB_TYPE_ALLTIME else self.__TABLE_USERS_MONTHLY
 
         with tinydb.TinyDB(f'{self.__db_path}/{self.__DB_FILE_USERS}') as db:
-            table_users = db.table(self.__TABLE_USERS)
+            table_users = db.table(table)
 
             ranked_entries = sorted(
                 table_users.all(),
-                key = lambda entry: float(entry[key_id]),
+                key = lambda entry: float(entry['points']),
                 reverse = True
             )
 
-            return ranked_entries[:num]
+            table_users = db.table(self.__TABLE_USERS_DATA)
+            for entry in ranked_entries:
+                # Insert user name into entries
+                entry['user_name'] = table_users.get(doc_id = entry.doc_id)['user_name']
+
+            return ranked_entries
 
 
     def get_monthly_winners_list(self) -> list[table.Document]:
@@ -509,6 +579,10 @@ class ThreadNecroBotCore():
         with tinydb.TinyDB(f'{self.__db_path}/{self.__DB_FILE_SCORES}') as db:
             table_scores = db.table(self.__TABLE_SCORES_MONTHLY)
             table_scores.truncate()
+
+        with tinydb.TinyDB(f'{self.__db_path}/{self.__DB_FILE_USERS}') as db:
+            table_users = db.table(self.__TABLE_USERS_MONTHLY)
+            table_users.truncate()
 
         with tinydb.TinyDB(f'{self.__db_path}/{self.__DB_FILE_LOGS}') as db:
             table_logs_meta = db.table(self.__TABLE_LOGS_META)
