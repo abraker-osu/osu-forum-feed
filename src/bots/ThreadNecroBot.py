@@ -513,7 +513,7 @@ class ThreadNecroBot(BotBase, ThreadNecroBotCore):
 
         # Generate log lines
         for monthly_winner in monthly_winners_list[:]:
-            monthly_winners_text += monthly_winners_format.format(monthly_winner['time'], monthly_winner['user_name'], monthly_winner['points_monthly']) + '\n'
+            monthly_winners_text += monthly_winners_format.format(monthly_winner['time'], monthly_winner['user_name'], monthly_winner['points']) + '\n'
 
         if monthly_winners_text == '':
             monthly_winners_text = 'N/A'
