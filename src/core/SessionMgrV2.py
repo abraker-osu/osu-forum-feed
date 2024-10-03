@@ -160,7 +160,7 @@ class OssapiCustom(ossapi.Ossapi):
         serversocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         serversocket.bind(('localhost', port))
         serversocket.listen(1)
-        serversocket.settimeout(10)
+        serversocket.settimeout(60)
         connection, _ = serversocket.accept()
 
         # arbitrary "large enough" byte receive size
