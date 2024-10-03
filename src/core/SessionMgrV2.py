@@ -215,7 +215,7 @@ class SessionMgrV2(SessionMgrBase):
 
         # NOTE: This 2FA only works if authorization url is opened in a browser on same network as the bot
         self._logger.info('Authorizing osu!api v2...')
-        hostname = socket.gethostname() if BotConfig['Core']['is_dbg'] else 'localhost'
+        hostname = 'localhost' if BotConfig['Core']['is_dbg'] else socket.gethostname()
 
         self.__osu_apiv2 = OssapiCustom(
             BotConfig['Core']['osuapiv2_client_id'],
