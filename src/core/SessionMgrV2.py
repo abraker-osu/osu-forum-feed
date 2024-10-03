@@ -150,7 +150,7 @@ class OssapiCustom(ossapi.Ossapi):
 
         self.log.debug('Sending url...')
         authorization_url, _state = session.authorization_url(self.auth_code_url)
-        DiscordClient.request(self.__discord_bot_port, '/admin/post',{
+        DiscordClient.request('/admin/post',{
             'contents' : f'Requesting authorization to the osu!api: {authorization_url}',
             'src'      : 'ForumBot'
         })
