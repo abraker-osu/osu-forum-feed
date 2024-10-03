@@ -32,7 +32,7 @@ class User():
         except:
             post_user_avatar = "background-image: url('');"
 
-        avatar = re.findall('background-image: url\(\'(.*?)\'\);', post_user_avatar)[0]
+        avatar = re.findall(r'background-image: url\(\'(.*?)\'\);', post_user_avatar)[0]
         if avatar == '/images/layout/avatar-guest.png':
             return 'https://osu.ppy.sh/images/layout/avatar-guest.png'
         else:

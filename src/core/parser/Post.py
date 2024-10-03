@@ -18,10 +18,11 @@ if TYPE_CHECKING:
 
 class Post():
 
-    def __init__(self, topic: "Topic", root: BeautifulSoup, logger: logging.Logger):
+    __logger = logging.getLogger(__qualname__)
+
+    def __init__(self, topic: "Topic", root: BeautifulSoup):
         self.__topic  = topic
         self.__root   = root
-        self.__logger = logger
 
 
     # Overload with the Topic object to ensure getTopic works for either objects
@@ -45,8 +46,8 @@ class Post():
 
 
     @cached_property
-    def post_num(self) -> str:
-        try: return self.__root['data-post-position']
+    def post_num(self) -> int:
+        try: return int(self.__root['data-post-position'])
         except Exception as e:
             raise ParserError(f'Unable to parse post number; {self.url}') from e
 
@@ -153,21 +154,17 @@ class Post():
     @cached_property
     def prev_post(self) -> "Optional[Post]":
         post_roots = self.__topic.post_roots
-        i = len(post_roots) - 1
 
-        while True:
-            post_id = Post(self.__topic, post_roots[i], self.__logger).id
-            if post_id == self.id: break
-            if i <= 0: break
-            i -= 1
+        for i in range(len(post_roots) - 1, -1, -1):
+            # Locate this post in the list and then get the post before this one
+            post_id = Post(self.__topic, post_roots[i]).id
+            if post_id == self.id:
+                return Post(self.__topic, post_roots[i - 1])
 
-        if i == 0:
-            return None
-
-        return Post(self.__topic, post_roots[i - 1], self.__logger)
+        return None
 
 
     @cached_property
-    def id(self) -> str:
+    def id(self) -> int:
         url = self.url
-        return url[url.rfind('/') + 1:]
+        return int(url[url.rfind('/') + 1:])

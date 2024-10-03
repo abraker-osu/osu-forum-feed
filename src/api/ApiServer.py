@@ -2,8 +2,9 @@ import os
 import platform
 import asyncio
 import socket
+import warnings
 
-from typing import List, Optional, Sequence
+from typing import Optional, Sequence
 
 import logging
 import threading
@@ -12,9 +13,14 @@ import asyncio
 import uvicorn
 import fastapi
 
-from core.console_framework.Cmd import Cmd
-from core.console_framework.CommandProcessor import CommandProcessor
+from core.BotConfig import BotConfig
 
+from .Cmd import Cmd
+from .CommandProcessor import CommandProcessor
+
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from core.BotBase import BotBase
 
 
 class UvicornServerPatch(uvicorn.Server):
@@ -29,7 +35,7 @@ class UvicornServerPatch(uvicorn.Server):
 
     __logger = logging.getLogger('UvicornServerPatch')
 
-    async def startup(self: uvicorn.Server, sockets: Optional[List[socket.socket]] = None) -> None:
+    async def startup(self: uvicorn.Server, sockets: Optional[list[socket.socket]] = None) -> None:
         await self.lifespan.startup()
         if self.lifespan.should_exit:
             self.should_exit = True
@@ -138,47 +144,65 @@ class UvicornServerPatch(uvicorn.Server):
 
 class ApiServer():
 
-    app = fastapi.FastAPI()
+    __app     = fastapi.FastAPI()
+    __cmd     = None
+    __logger  = logging.getLogger(__qualname__)
 
-    _init    = False
-    _logger  = None
-    _server  = None
+    __init    = False
+    __server  = None
 
-    __loop   = None
-    __thread = None
+    __loop    = None
+    __thread  = None
 
     @staticmethod
-    def init(api_port: int):
-        if ApiServer._init: # init guard
-            ApiServer._logger.warn('ApiServer already initialized')
+    def init(bots: "list[BotBase]"):
+        # Make it a static singleton
+        if ApiServer.__init:
+            ApiServer.__logger.warning('ApiServer already initialized')
             return
 
-        ApiServer._logger = logging.getLogger(__class__.__name__)
+        api_port = BotConfig['Core']['api_port']
+        if api_port == 0:
+            ApiServer.__logger.debug('ApiServer disabled')
+            return
 
-        ApiServer._logger.info(f'Initializing server: 127.0.0.1:{api_port}')
-        ApiServer._server = UvicornServerPatch(uvicorn.Config(app=ApiServer.app, host='127.0.0.1', port=api_port, log_level='debug'))
+        ApiServer.__cmd = CommandProcessor(bots)
+
+        ApiServer.__logger.info(f'Initializing server: 127.0.0.1:{api_port}')
+        ApiServer.__server = UvicornServerPatch(uvicorn.Config(app=ApiServer.__app, host='127.0.0.1', port=api_port, log_level='debug'))
 
         ApiServer.__loop = asyncio.get_event_loop()
-        ApiServer.__loop.create_task(ApiServer._server.serve())
+        ApiServer.__loop.create_task(ApiServer.__server.serve())
 
-        ApiServer.__thread = threading.Thread(target=ApiServer.__loop.run_forever)
-        ApiServer.__thread.setDaemon(True)
+        # Thread needed for the async loop not to halt the rest of the bot
+        ApiServer.__thread = threading.Thread(target=ApiServer.__loop.run_forever, daemon=True)
         ApiServer.__thread.start()
 
-        ApiServer._init = True
+        ApiServer.__init = True
 
 
     @staticmethod
     def stop():
+        ApiServer.__logger.info('Stopping api server...')
         #ApiServer._server.close()
         pass
 
 
     @staticmethod
-    @app.put('/request')
-    async def handle_comment(data: fastapi.Request):
+    @__app.put('/request')
+    async def _(data: fastapi.Request) -> dict:
+        ApiServer.__logger.info(f'PUT /request {data}')
+
         try:
             data = await data.json()
-            return CommandProcessor.process_data(data)
+            return ApiServer.__cmd.process_data(data)
         except Exception as e:
-            return Cmd.err(str(e))
+            warnings.warn(e, source=e)
+            return Cmd.err('Something went wrong!')
+
+
+    @staticmethod
+    @__app.put('/ping')
+    async def _(data: fastapi.Request) -> dict:
+        ApiServer.__logger.info(f'PUT /ping {data}')
+        return Cmd.ok('pong')

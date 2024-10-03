@@ -1,87 +1,107 @@
 import logging
-import tinydb
-import requests
 
-from typing import TYPE_CHECKING, Union, Optional
+from typing import TYPE_CHECKING
 if TYPE_CHECKING:
-    from core import Cmd
-    from core import ForumMonitor
-    from core.parser import Post, Topic
+    from api.Cmd import Cmd
+    from .parser import Post
 
 
 class BotBase:
 
-    def __init__(self, core: "ForumMonitor", cmd: "Cmd", name: str, enable: bool):
-        self.logger    = logging.getLogger('bots/' + name)
-        self.__core    = core
+    def __init__(self, cmd: "type[Cmd]", name: str, enable: bool):
+        self.logger    = logging.getLogger(f'bots.{name}')
         self.__enable  = enable
         self.__name    = name
-        self.__bot_cmd = cmd(self.logger, self)
+        self.__bot_cmd = cmd(self)
 
 
     def post_init(self):
         raise NotImplementedError()
 
+    @property
+    def cmd(self) -> "Cmd":
+        return self.__bot_cmd
 
-    def enable(self):
+
+    @property
+    def name(self) -> str:
+        return self.__name
+
+
+    def enable(self) -> None:
+        """
+        Enable the bot. This will allow the bot to receive new post events.
+        """
         self.__enable = True
 
 
-    def disable(self):
+
+    def disable(self) -> None:
+        """
+        Disable the bot. This will prevent the bot from receiving new post events.
+        """
         self.__enable = False
 
 
+    @property
     def is_enabled(self) -> bool:
         return self.__enable
 
 
     def event(self, forum_data: "Post"):
+        """
+        To be called for each new post
+
+        Parameters
+        ----------
+        forum_data : Post
+            The `Post` object to process.
+        """
         if not self.__enable:
             return
 
         if not self.filter_data(forum_data):
             return
 
-        try: self.process_data(forum_data)
-        except Exception as e:
-            self.logger.warning(repr(e))
-            return
+        self.process_data(forum_data)
 
 
     def filter_data(self, forum_data: "Post") -> bool:
+        """
+        Bot filter criteria. By default, it doesn't filter anything.
+        Reimplement this method if it's desired to filter posts.
+
+        Not meant to be used publically.
+
+        Parameters
+        ----------
+        forum_data : Post
+            The `Post` object to filter.
+
+        Returns
+        -------
+        bool
+            Whether the `Post` object should be filtered or not.
+        """
         return True
 
 
-    # process_data is meant to be used by the bot to do whatever it wants with the data it gets
-    def process_data(self, forum_data: "Post"):
-        msg = 'process_data method not implemented'
-        self.logger.error(msg)
-        raise NotImplementedError(msg)
+    def process_data(self, forum_data: "Post") -> None:
+        """
+        Processes the given forum data; used by the bot module to process
+        data. This method should be overridden in a child class to do
+        something with the forum data.
 
+        Not meant to be used publically.
 
-    def get_db_table(self, name: str) -> tinydb.TinyDB.table_class:
-        return self.__core.get_db_table(f'{self.__name}_{name}')
+        Parameters
+        ----------
+        forum_data : Post
+            The `Post` object to process.
 
-
-    def get_cfg(self, src: str, key: str):
-        return self.__core.get_cfg(src, key)
-
-
-    def get_name(self) -> str:
-        return self.__name
-
-
-    def edit_post(self, post_id: Union[int, str], new_content: str, append: bool = False):
-        self.__core.edit_post(post_id, new_content, append)
-
-
-    def get_post(self, post_id: Union[int, str], page: Optional[requests.Response] = None) -> "Post":
-        self.__core.get_post(post_id, page)
-
-
-    def get_prev_post(self, ref_post: "Post") -> "Optional[Post]":
-        self.__core.get_prev_post(ref_post)
-
-
-    def get_next_post(self, ref_post: "Post") -> "Optional[Post]":
-        self.__core.get_next_post(ref_post)
+        Raises
+        ------
+        NotImplementedError
+            If this method is not implemented in the child class.
+        """
+        raise NotImplementedError('process_data method not implemented')

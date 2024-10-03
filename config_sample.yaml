@@ -6,7 +6,9 @@ Core:
   log_path:      'logs'      # (str)
   bots_log_path: 'logs/bots' # (str)
   bots_path:     'src/bots'  # (str)
-  db_path:       'db.json'   # (str)
+
+  db_path:       'db'        # (str)
+  db_path_dbg:   'db_dbg'    # (str)
 
   # Forum monitor bootstrap settings
   # This is only used as starting values if it doesn't exist in DB
@@ -18,21 +20,30 @@ Core:
   rate_post_min:    3.0  # (float) Minimum number of seconds to wait between fetching posts
   rate_fetch_fail: 60.0  # (float) Seconds to wait after encountering a connection error when fetching posts
 
-  # Port for discord bot relaying forum feed
+  # Port the discord bot API listens on
+  # NOTE: This is needed for SessionV2 to send osu!apiv2 authorization url
   discord_bot_port:  # (int)
 
   # Discord id of admin
-  discord_admin_user_id:  # (int)
+  discord_bot_admin_user_id:  # (int)
 
-  # Port on which the bot API will listen on
+  # Port on which the bot's API will listen on
+  # Set to 0 to disable the API
   api_port:  # (int)
 
-  # Username and password for osu!web
+  # SessionV1: Username and password for osu!web
   # NOTE: When logging in, osu! sends a verification to the email address associated with the account.
   #   This must be acknowledged manually upon bot initialization
-  # TODO: Is there a way to avoid putting this in plaintext here?
-  web_username:  # (str)
-  web_password:  # (str)
+  # TODO: This is no longer supported
+  osuweb_username:       # (str)
+  osuweb_password:       # (str)
+
+  # SessionV2: Client ID and Client Secret for osu!apiv2
+  osuapiv2_client_id:      # (str)
+  osuapiv2_client_secret:  # (str)
+
+  # Directory where the osu!apiv2 auth2 token will be stored
+  osuapiv2_token_dir: '.'
 
 
 ThreadNecroBot:

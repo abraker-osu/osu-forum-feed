@@ -1,8 +1,11 @@
-from typing import Union
+from core.BotBase import BotBase
+from core.parser.Post import Post
 
-from core import BotBase
-from core import Cmd
-from core import Post, Topic
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from core.BotCore import BotCore
+
+from api.Cmd import Cmd
 
 
 # This to be used as a template for other bots with basic explanatons what the important parts do
@@ -10,8 +13,8 @@ class TestBot(BotBase):
 
     # The enable flag which controls whether the bot will be active or not
     # Every other parameter is to be copy-pasted
-    def __init__(self, core):
-        BotBase.__init__(self, core, self.BotCmd, self.__class__.__name__, enable=False)
+    def __init__(self):
+        BotBase.__init__(self, self.BotCmd, self.__class__.__name__, enable=False)
 
 
     # Things that need to be intialized or run after initialization. This is primarily
@@ -49,14 +52,13 @@ class TestBot(BotBase):
     class BotCmd(Cmd):
 
         # obj is what the commands interface with
-        def __init__(self, logger, obj):
-            self.logger = logger
-            self.obj    = obj
+        def __init__(self, obj: BotBase):
+            Cmd.__init__(self, obj)
 
 
         # This is one of the four function that are required to be defined in the derived class and serves to provide
         # a list of users who are allowed to use commands up to Cmd.PERMISSION_MOD level
-        def get_bot_moderators(self):
+        def get_bot_moderators(self) -> list:
             return []
 
 
@@ -64,7 +66,7 @@ class TestBot(BotBase):
         # whether the user who requested the command (requestor_id) can use the command based on whatever conditions
         # specified in args. This might be the user id they are trying to access, their requestor id's specific
         # status, and so on.
-        def validate_special_perm(self, requestor_id: int, args: tuple):
+        def validate_special_perm(self, requestor_id: int, access_id: int) -> bool:
             return False
 
 
@@ -77,7 +79,7 @@ class TestBot(BotBase):
         info = 'Prints the about text for TestBot',
         args = {
         })
-        def cmd_about(self, cmd_key: "tuple[int, int]"):
+        def cmd_about(self, cmd_key: tuple[int, int]) -> dict:
             # This uses a function defined in the Cmd super class to validate the request. Validation is
             # based on user permission. Note the cmd_key, which is required for any non public permission level.
             # The value for cmd_key is automatically passed on from the Command Processor, so you only need to worry
@@ -97,13 +99,5 @@ class TestBot(BotBase):
         info = 'Prints the help text for TestBot',
         args = {
         })
-        def cmd_help(self, cmd_key: "tuple[int, int]"):
-            # Validate the request. Note there are the following permission levels:
-            #   Cmd.PERMISSION_PUBLIC  - Anyone and their grandmother is allowed to use the command
-            #   Cmd.PERMISSION_SPECIAL - Anyone can use the command, but there are certain restrictions on a case-by-case basis, which are evaluated by validate_special_perm
-            #   Cmd.PERMISSION_MOD     - Only users that are returned in the get_bot_moderators function are allowed to use the command
-            #   Cmd.PERMISSION_ADMIN   - Only the bot owner (you) can use the command
-            if not self.validate_request(cmd_key):
-                return Cmd.err(f'Insufficient permissions')
-
+        def cmd_help(self) -> dict:
             return Cmd.ok('A test bot. That\'s all...')
