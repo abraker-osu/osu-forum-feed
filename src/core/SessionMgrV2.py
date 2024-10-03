@@ -213,12 +213,14 @@ class SessionMgrV2(SessionMgrBase):
         if isinstance(self.__osu_apiv2, OssapiCustom):
             return
 
+        # NOTE: This 2FA only works if authorization url is opened in a browser on same network as the bot
         self._logger.info('Authorizing osu!api v2...')
+        hostname = socket.gethostname() if BotConfig['Core']['is_dbg'] else 'localhost'
 
         self.__osu_apiv2 = OssapiCustom(
             BotConfig['Core']['osuapiv2_client_id'],
             BotConfig['Core']['osuapiv2_client_secret'],
-            redirect_uri       = 'http://localhost:8000',
+            redirect_uri       = f'http://{hostname}:8000',
             scopes             = [ ossapi.Scope.FORUM_WRITE ],
             grant              = 'authorization',
 
