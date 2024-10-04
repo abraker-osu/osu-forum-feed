@@ -158,7 +158,7 @@ class OssapiCustom(ossapi.Ossapi):
         # open up a temporary socket so we can receive the GET request to the callback url
         port = int(redirect_uri.rsplit(':', 1)[1].split('/')[0])
         serversocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        serversocket.bind(('localhost', port))
+        serversocket.bind(('0.0.0.0', port))
         serversocket.listen(1)
         serversocket.settimeout(60)
         connection, _ = serversocket.accept()
