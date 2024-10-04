@@ -19,8 +19,4 @@ if [[ "$VIRTUAL_ENV" == "" ]]; then
     exit 1
 fi
 
-# Don't let CDPATH interfere with the cd command
-unset CDPATH
-cd "$(dirname "$0")"
-
-exec python3 $(pwd)/src/run.py
+python3 src/run.py
