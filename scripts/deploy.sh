@@ -21,7 +21,6 @@ chown -R server:server /home/server/prod/osu-forum-feed
 # Move config and db files back
 mkdir -p /home/server/tmp
 mv /home/server/tmp/config.yaml /home/server/prod/osu-forum-feed/config.yaml
-mv /home/server/tmp/db /home/server/prod/osu-forum-feed/db
 
 # Sensitive files should only be accesible by the user these files are for
 # config: r--r-----
