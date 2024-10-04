@@ -16,7 +16,7 @@ mv /home/server/prod/osu-forum-feed/db /home/server/tmp/db
 
 # Nuke the folder and copy over the updated files in repo location -> prod location
 rm -rf /home/server/prod/osu-forum-feed
-rsync -av --progress . /home/server/prod/osu-forum-feed --exclude config.yaml
+rsync -av --progress . /home/server/prod/osu-forum-feed --exclude config.yaml --exclude .git
 chown -R server:server /home/server/prod/osu-forum-feed
 
 # Move config and db files back
