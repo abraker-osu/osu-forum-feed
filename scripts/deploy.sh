@@ -12,7 +12,6 @@ systemctl stop forumbot.service
 
 # Move config and db files to a temporary location because they would be overwritten otherwise
 mv /home/server/prod/osu-forum-feed/config.yaml /home/server/tmp/config.yaml
-mv /home/server/prod/osu-forum-feed/db /home/server/tmp/db
 
 # Nuke the folder and copy over the updated files in repo location -> prod location
 rm -rf /home/server/prod/osu-forum-feed
