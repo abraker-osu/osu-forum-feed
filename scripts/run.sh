@@ -23,4 +23,4 @@ fi
 unset CDPATH
 cd "$(dirname "$0")"
 
-exec python3 src/run.py
+exec python3 $pwd/src/run.py
