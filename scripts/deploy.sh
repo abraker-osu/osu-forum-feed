@@ -28,7 +28,7 @@ mv /home/server/tmp/config.yaml /home/server/prod/osu-forum-feed/config.yaml
 chown root:server /home/server/prod/osu-forum-feed/config.yaml
 chmod 440 /home/server/prod/osu-forum-feed/config.yaml
 chown -R root:server /var/lib/forum-bot
-chmod -R 660 /var/lib/forum-bot
+chmod -R 770 /var/lib/forum-bot
 
 # Logs dir
 mkdir -p /var/log/forum-bot
