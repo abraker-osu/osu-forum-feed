@@ -44,6 +44,7 @@ class ForumMonitor(BotCore):
         self.__logger.info('ForumMonitor initializing...')
 
         BotCore.__init__(self)
+        SessionMgrV2.login()
 
         self.__post_rate      = 5.0
         self.__latest_post_id = None
