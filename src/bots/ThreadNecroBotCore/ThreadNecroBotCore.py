@@ -451,7 +451,7 @@ class ThreadNecroBotCore():
             return [
                 entry
                 for i in range(lst_len - idx, lst_len - idx - num, -1)
-                if not isinstance(entry := table_log.get(doc_id=i), type(None))
+                if not isinstance(entry := table_log.get(doc_id = i), type(None))
             ]
 
 
@@ -535,16 +535,13 @@ class ThreadNecroBotCore():
                     ...
                 ]
         """
-        table = self.__TABLE_USERS_ALLTIME if type_id == self.DB_TYPE_ALLTIME else self.__TABLE_USERS_MONTHLY
+        table_name = self.__TABLE_USERS_ALLTIME if type_id == self.DB_TYPE_ALLTIME else self.__TABLE_USERS_MONTHLY
 
         with tinydb.TinyDB(f'{self.__db_path}/{self.__DB_FILE_USERS}') as db:
-            table_users = db.table(table)
+            table_users = db.table(table_name)
 
-            ranked_entries = sorted(
-                table_users.all(),
-                key = lambda entry: float(entry['points']),
-                reverse = True
-            )
+            ranked_entries = table_users.all()
+            ranked_entries.sort(key = lambda entry: float(entry['points']), reverse = True)
 
             table_users = db.table(self.__TABLE_USERS_DATA)
             for entry in ranked_entries:
