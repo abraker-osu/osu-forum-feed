@@ -45,7 +45,7 @@ class ForumMonitor(BotCore):
 
         DiscordClient.request('admin/post', {
             'src' : 'forumbot',
-            'contents' : f'```Forum monitor starting...````'
+            'contents' : f'```Forum monitor starting...```'
         })
 
         BotCore.__init__(self)
