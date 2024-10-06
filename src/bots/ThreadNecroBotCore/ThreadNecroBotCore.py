@@ -234,7 +234,7 @@ class ThreadNecroBotCore():
                 'time'      : monthly_winner['time'],
                 'user_id'   : monthly_winner.doc_id,
                 'user_name' : monthly_winner['user_name'],
-                'points'    : monthly_winner['points_monthly'],
+                'points'    : monthly_winner['points'],
             }, len(table_winners)))
 
 
