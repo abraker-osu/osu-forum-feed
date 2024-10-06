@@ -247,8 +247,7 @@ class SessionMgrV2(SessionMgrBase):
         #   this should be handled via a login and a retry
         try: self.__osu_apiv2.forum_edit_post(post_id, new_content)
         except Exception as e:
-            msg = f'Unable to edit post id: {post_id}; {e}'
-            raise BotException(msg) from e
+            raise BotException(f'Unable to edit post id: {post_id}; {e}') from e
 
 
 SessionMgrV2 = SessionMgrV2()

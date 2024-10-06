@@ -671,13 +671,11 @@ class ThreadNecroBot(BotBase, ThreadNecroBotCore):
             })
 
             entry = self.obj.get_user(user_name)
-            msg = f'Updated user "{user_name}": {entry["points_alltime"]} pts all time, {entry["points_monthly"]} pts monthly'
+            self.obj.write_post()
 
-            try: self.obj.write_post()
-            except Exception as e:
-                warnings.warn(f'warning: {e}', source=e)
-
-            return Cmd.ok(msg)
+            return Cmd.ok(
+                f'Updated user "{user_name}": {entry["points_alltime"]} pts all time, {entry["points_monthly"]} pts monthly'
+            )
 
 
         @Cmd.help(
