@@ -217,9 +217,9 @@ class ThreadNecroBotCore():
         # If the monthly winners list doesn't exist, that means we are doing this for the first time
         # Grab the All-time top 10 if that is so because monthly top 10 is incomplete
         if not monthly_winners_list:
-            top_10_monthly_list = self.get_top_10_list(self.DB_TYPE_ALLTIME)
+            top_10_monthly_list = self.get_top_scores_list(self.DB_TYPE_ALLTIME)
         else:
-            top_10_monthly_list = self.get_top_10_list(self.DB_TYPE_MONTHLY)
+            top_10_monthly_list = self.get_top_scores_list(self.DB_TYPE_MONTHLY)
 
         # Process
         if not top_10_monthly_list:
