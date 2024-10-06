@@ -14,6 +14,7 @@ from .BotConfig import BotConfig
 from .BotCore import BotCore
 from .SessionMgrV2 import SessionMgrV2
 from .BotException import BotException
+from .DiscordClient import DiscordClient
 
 
 
@@ -41,7 +42,11 @@ class ForumMonitor(BotCore):
 
     def __init__(self):
         self.__logger = logging.getLogger(__class__.__name__)
-        self.__logger.info('ForumMonitor initializing...')
+
+        DiscordClient.request('admin/post', {
+            'src' : 'forumbot',
+            'contents' : f'```Forum monitor starting...````'
+        })
 
         BotCore.__init__(self)
         SessionMgrV2.login()
