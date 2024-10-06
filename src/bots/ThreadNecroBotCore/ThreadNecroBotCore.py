@@ -212,26 +212,23 @@ class ThreadNecroBotCore():
             ...
         }
         """
-        monthly_winners_list: list[table.Document] = self.get_monthly_winners_list()
-
         # If the monthly winners list doesn't exist, that means we are doing this for the first time
         # Grab the All-time top 10 if that is so because monthly top 10 is incomplete
-        if not monthly_winners_list:
-            top_10_monthly_list = self.get_top_scores_list(self.DB_TYPE_ALLTIME)
+        if not self.get_monthly_winners_list():
+            top_scores_list = self.get_ranked_list(self.DB_TYPE_ALLTIME)
         else:
-            top_10_monthly_list = self.get_top_scores_list(self.DB_TYPE_MONTHLY)
+            top_scores_list = self.get_ranked_list(self.DB_TYPE_MONTHLY)
 
         # Process
-        if not top_10_monthly_list:
+        if not top_scores_list:
             return
 
-        monthly_winner = top_10_monthly_list[0]
-        monthly_winner['time'] = str(datetime.datetime.now().date())
+        monthly_winner = top_scores_list[0]
 
         with tinydb.TinyDB(f'{self.__db_path}/{self.__DB_FILE_WINNERS}') as db:
             table_winners = db.table(self.__TABLE_WINNERS)
             table_winners.upsert(table.Document({
-                'time'      : monthly_winner['time'],
+                'time'      : str(datetime.datetime.now().date()),
                 'user_id'   : monthly_winner.doc_id,
                 'user_name' : monthly_winner['user_name'],
                 'points'    : monthly_winner['points'],
@@ -533,8 +530,8 @@ class ThreadNecroBotCore():
             A sorted list user entries by points
             fmt:
                 [
-                    { 'user_name' : str, 'points' : float },
-                    { 'user_name' : str, 'points' : float },
+                    [user_id:int] : { 'user_name' : str, 'points' : float },
+                    [user_id:int] : { 'user_name' : str, 'points' : float },
                     ...
                 ]
         """
