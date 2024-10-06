@@ -21,4 +21,4 @@ if "%VIRTUAL_ENV%" == "" (
     if %errorlevel% neq 0 exit /b %errorlevel%
 )
 
-python src\\run.py
+python %1

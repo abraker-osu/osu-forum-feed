@@ -22,7 +22,7 @@
         {
             "label"   : "run",
             "type"    : "shell",
-            "command" : "scripts\\run.bat",
+            "command" : "scripts\\run.bat src\\run.py",
         },
         {
             "label"   : "test",
