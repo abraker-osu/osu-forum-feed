@@ -292,9 +292,9 @@ class ThreadNecroBot(BotBase, ThreadNecroBotCore):
 
         data = {
             'time'        : str(f'{log_timestamp}'),
-            'user_id'     : int(prev_post_info['user_id']),
-            'user_name'   : str(prev_post_info['user_name']),
-            'post_id'     : int(prev_post_info['post_id']),
+            'user_id'     : int(prev_post_info['prev_post_user_id']),
+            # 'user_name' : Assumed to already exist
+            'post_id'     : int(prev_post_info['prev_post_id']),
             'added_score' : float(f'{added_score:.3f}')
         }
 

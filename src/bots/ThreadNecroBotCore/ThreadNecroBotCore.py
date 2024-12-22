@@ -100,10 +100,13 @@ class ThreadNecroBotCore():
 
         with tinydb.TinyDB(f'{self.__db_path}/{self.__DB_FILE_USERS}') as db:
             table_user = db.table(self.__TABLE_USERS_DATA)
-            table_user.upsert(table.Document({
-                'user_name' : str(user_data['user_name']),
-                'post_id'   : int(user_data['post_id'])
-            }, doc_id = uid))
+
+            data = {}
+            data['post_id'] = int(user_data['post_id'])
+            if 'user_name' in user_data:
+                # NOTE: This might leave username blank in some edge cases
+                data['user_name'] = user_data['user_name']
+            table_user.upsert(table.Document(data, doc_id = uid))
 
             table_user = db.table(self.__TABLE_USERS_ALLTIME)
             table_user.upsert(table.Document({
