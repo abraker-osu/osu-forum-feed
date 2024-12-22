@@ -51,7 +51,9 @@ class ForumMonitor(BotCore):
         BotCore.__init__(self)
         SessionMgrV2.login()
 
-        self.__post_rate      = 5.0
+        self.__post_rate       = 5.0
+        self.__last_rate_limit = 0
+
         self.__latest_post_id = None
         self.__latest_post_id = self.__retrieve_latest_post()
         self.__check_post_ids = [ self.__latest_post_id ]
@@ -296,6 +298,10 @@ class ForumMonitor(BotCore):
 
                 # Ok post
                 if page.status_code == 200:
+                    rate_limit_period = time.time() - self.__last_rate_limit
+                    if rate_limit_period > BotConfig['Core']['rate_gracetime'] * self.__post_rate:
+                        self.__post_rate -= 0.1
+
                     self.handle_new_post(check_post_ids, i, page)
                     return
             except KeyboardInterrupt:
@@ -308,10 +314,14 @@ class ForumMonitor(BotCore):
 
             # Too many requests -> start over
             if page.status_code == 429:
+                self.__last_rate_limit = time.time()
                 if self.__post_rate < BotConfig['Core']['rate_post_max']:
                     self.__post_rate += 0.1
                     if self.__post_rate >= BotConfig['Core']['rate_post_warn']:
-                        self.__logger.warning('Forum monitor post rate has reached over 5 sec!')
+                        DiscordClient.request('admin/post', {
+                            'src'      : 'forumbot',
+                            'contents' : '```Forum monitor post rate has reached over 5 sec!```'
+                        })
                 return
 
             # Post not found/available -> add next id and start over

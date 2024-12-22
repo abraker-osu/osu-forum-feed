@@ -19,6 +19,7 @@ Core:
   rate_post_warn:  10.0  # (float) Warn when rate in seconds between fetching posts is higher than this
   rate_post_min:    3.0  # (float) Minimum number of seconds to wait between fetching posts
   rate_fetch_fail: 60.0  # (float) Seconds to wait after encountering a connection error when fetching posts
+  rate_gracetime:   2.0  # x times the current rate to wait after last rate limit encounter before increase rate again
 
   # Port the discord bot API listens on
   # NOTE: This is needed for SessionV2 to send osu!apiv2 authorization url
