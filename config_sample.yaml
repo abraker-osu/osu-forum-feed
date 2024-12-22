@@ -40,8 +40,9 @@ Core:
   osuweb_password:       # (str)
 
   # SessionV2: Client ID and Client Secret for osu!apiv2
-  osuapiv2_client_id:      # (str)
-  osuapiv2_client_secret:  # (str)
+  osuapiv2_client_id:                 # (str)
+  osuapiv2_client_secret:             # (str)
+  osuapiv2_dbg_host:  'localhost'     # (str)
 
   # Directory where the osu!apiv2 auth2 token will be stored
   osuapiv2_token_dir: '.'
