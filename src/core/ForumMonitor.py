@@ -296,6 +296,8 @@ class ForumMonitor(BotCore):
                 if isinstance(page, type(None)):
                     continue
 
+                self.__logger.debug(f'Post ID: {check_post_ids[i]}    Status: {page.status_code}')
+
                 # Ok post
                 if page.status_code == 200:
                     rate_limit_period = time.time() - self.__last_rate_limit
@@ -305,12 +307,11 @@ class ForumMonitor(BotCore):
                     self.handle_new_post(check_post_ids, i, page)
                     return
             except KeyboardInterrupt:
-                self.runtime_quit = True; break
+                self.runtime_quit = True
+                break
             except BotException as e:
                 self.__logger.error(f'{e}\nPost id {check_post_ids[i]}')
                 raise
-
-            self.__logger.debug(f'Post ID: {check_post_ids[i]}    Status: {page.status_code}')
 
             # Too many requests -> start over
             if page.status_code == 429:
