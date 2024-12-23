@@ -252,9 +252,10 @@ class ThreadNecroBotCore():
         with tinydb.TinyDB(f'{self.__db_path}/{self.__DB_FILE_META}') as db:
             table_meta = db.table(self.__TABLE_META_PREV_POST)
             table_meta.upsert(table.Document({
-                'prev_post_id'      : data['post_id'],
-                'prev_post_time'    : data['time'],
-                'prev_post_user_id' : data['user_id'],
+                'prev_post_id'        : data['post_id'],
+                'prev_post_time'      : data['time'],
+                'prev_post_user_id'   : data['user_id'],
+                'prev_post_user_name' : data['user_name'],
             }, doc_id=0))
 
 

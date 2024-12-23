@@ -276,7 +276,7 @@ class ThreadNecroBot(BotBase, ThreadNecroBotCore):
         }
         """
         # If prev_post_info is none (prev post doesn't exist yet)
-        prev_post_info = self.get_prev_post_info()
+        prev_post_info: dict = self.get_prev_post_info()
         if not prev_post_info:
             return
 
@@ -293,7 +293,7 @@ class ThreadNecroBot(BotBase, ThreadNecroBotCore):
         data = {
             'time'        : str(f'{log_timestamp}'),
             'user_id'     : int(prev_post_info['prev_post_user_id']),
-            # 'user_name' : Assumed to already exist
+            'user_name'   : int(prev_post_info.get('prev_user_name', '')),
             'post_id'     : int(prev_post_info['prev_post_id']),
             'added_score' : float(f'{added_score:.3f}')
         }
