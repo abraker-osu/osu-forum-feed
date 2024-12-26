@@ -6,7 +6,7 @@ import requests
 import warnings
 
 import tinydb
-from tinydb.table import Document
+from tinydb import table
 
 from threading import Thread
 
@@ -43,10 +43,13 @@ class ForumMonitor(BotCore):
     def __init__(self):
         self.__logger = logging.getLogger(__class__.__name__)
 
-        DiscordClient.request('admin/post', {
-            'src' : 'forumbot',
-            'contents' : f'```Forum monitor starting...```'
-        })
+        try:
+            DiscordClient.request('admin/post', {
+                'src' : 'forumbot',
+                'contents' : f'```Forum monitor starting...```'
+            })
+        except Exception as e:
+            warnings.warn(f'Unable to send message to Discord: {e}')
 
         BotCore.__init__(self)
         SessionMgrV2.login()
@@ -88,9 +91,9 @@ class ForumMonitor(BotCore):
         self.__logger.info(f'Checking db at {self._db_path}/{self.__DB_FILE_BOTCORE}...')
 
         with tinydb.TinyDB(f'{self._db_path}/{self.__DB_FILE_BOTCORE}') as db:
-            table = db.table(self.__TABLE_BOTCORE)
+            table_botcore = db.table(self.__TABLE_BOTCORE)
 
-            entry = table.get(doc_id=self.__DB_ID_FORUM_MONITOR)
+            entry = table_botcore.get(doc_id=self.__DB_ID_FORUM_MONITOR)
             if not isinstance(entry, type(None)):
                 # Check for the `latest_post_id` field
                 if not 'latest_post_id' in entry:
@@ -102,7 +105,7 @@ class ForumMonitor(BotCore):
             # [2024.09.25] TODO: Check other fields?
 
             self.__logger.info('Forum monitor db empty; Building new one...')
-            table.insert(Document(
+            table_botcore.insert(table.Document(
                 {
                     # [2024.09.25] TODO: Add stat fields
                     'latest_post_id' : BotConfig['Core']['latest_post_id'],
@@ -140,10 +143,10 @@ class ForumMonitor(BotCore):
             }
         """
         with tinydb.TinyDB(f'{self._db_path}/{self.__DB_FILE_BOTCORE}') as db:
-            table = db.table(self.__TABLE_BOTCORE)
+            table_botcore = db.table(self.__TABLE_BOTCORE)
 
-            entry = table.get(doc_id=self.__DB_ID_FORUM_MONITOR)
-            if isinstance(entry, type(None)):
+            entry = table_botcore.get(doc_id=self.__DB_ID_FORUM_MONITOR)
+            if not isinstance(entry, table.Document):
                 # This should not happen as the db was checked
                 # So db may have unexpectedly modified by external means between then and now
                 raise BotException('ForumMonitor settings not found!')
@@ -167,8 +170,8 @@ class ForumMonitor(BotCore):
             The id of the post to set the latest post id to.
         """
         with tinydb.TinyDB(f'{self._db_path}/{self.__DB_FILE_BOTCORE}') as db:
-            table = db.table(self.__TABLE_BOTCORE)
-            table.upsert(Document(
+            table_botcore = db.table(self.__TABLE_BOTCORE)
+            table_botcore.upsert(table.Document(
                 {
                     'latest_post_id' : post_id
                 },

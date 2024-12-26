@@ -6,6 +6,9 @@ import warnings
 from dateutil.parser import parse
 from dateutil.relativedelta import relativedelta
 
+from tinydb import table
+
+
 from core.BotConfig import BotConfig
 from core.BotBase import BotBase
 from core.BotException import BotException
@@ -210,12 +213,20 @@ class ThreadNecroBot(BotBase, ThreadNecroBotCore):
             return self.__MULTI_POST_PTS_PENALTY
 
         curr_post_time = data['curr_post_time']
-        if isinstance(curr_post_time, str):
+        if isinstance(curr_post_time, int | float):
+            curr_post_time = datetime.datetime.fromtimestamp(curr_post_time)
+        elif isinstance(curr_post_time, str):
             curr_post_time = datetime.datetime.fromisoformat(curr_post_time)
+        else:
+            raise TypeError
 
         prev_post_time = prev_post_info['prev_post_time']
-        if isinstance(prev_post_time, str):
+        if isinstance(prev_post_time, int | float):
+            prev_post_time = datetime.datetime.fromtimestamp(prev_post_time)
+        elif isinstance(prev_post_time, str):
             prev_post_time = datetime.datetime.fromisoformat(prev_post_time)
+        else:
+            raise TypeError
 
         seconds_passed = (curr_post_time - prev_post_time).total_seconds()
         return self._b * math.pow(seconds_passed/60.0, self._n)
@@ -276,8 +287,8 @@ class ThreadNecroBot(BotBase, ThreadNecroBotCore):
         }
         """
         # If prev_post_info is none (prev post doesn't exist yet)
-        prev_post_info: dict = self.get_prev_post_info()
-        if not prev_post_info:
+        prev_post_info = self.get_prev_post_info()
+        if not isinstance(prev_post_info, table.Document):
             return
 
         added_score = self.calculate_score_gained_prev_user(prev_post_info, data)
@@ -302,7 +313,9 @@ class ThreadNecroBot(BotBase, ThreadNecroBotCore):
 
         if log_timestamp:
             self.update_log_data(data)
-            self.logger.info(self.generate_log_line(data))
+
+            log_list = self.get_log_list(self.DB_TYPE_ALLTIME)
+            self.logger.info(self.generate_log_line(data, log_list))
 
 
     def process_curr_user(self, data: dict):
@@ -321,7 +334,7 @@ class ThreadNecroBot(BotBase, ThreadNecroBotCore):
         """
         # If prev_post_info is none (prev post doesn't exist yet)
         prev_post_info = self.get_prev_post_info()
-        if not prev_post_info:
+        if not isinstance(prev_post_info, dict):
             prev_post_info = {
                 'prev_post_id'      : data['prev_post_id'],
                 'prev_post_time'    : data['prev_post_time'],
@@ -342,7 +355,8 @@ class ThreadNecroBot(BotBase, ThreadNecroBotCore):
         self.update_top_score_data(data)
         self.update_metadata(data)
 
-        self.logger.info(self.generate_log_line(data))
+        log_list = self.get_log_list(self.DB_TYPE_ALLTIME)
+        self.logger.info(self.generate_log_line(data, log_list))
 
 
     def process_user_bonus(self, data: dict):
@@ -379,7 +393,8 @@ class ThreadNecroBot(BotBase, ThreadNecroBotCore):
         self.update_user_data(data)
         self.update_log_data(data)
 
-        self.logger.info(self.generate_log_line(data))
+        log_list = self.get_log_list(self.DB_TYPE_ALLTIME)
+        self.logger.info(self.generate_log_line(data, log_list))
 
 
     def is_multi_post(self, prev_post_info: dict, data: dict):
@@ -431,15 +446,11 @@ class ThreadNecroBot(BotBase, ThreadNecroBotCore):
             return False
 
 
-    def generate_log_line(self, data: dict, log_list: list[dict] = None):
+    def generate_log_line(self, data: dict, log_list: list[table.Document]):
         """
         fmt `data`:
             { 'time' : str, 'user_name : str, 'added_score' : float, 'total_score' : float }
         """
-        # needed only to determine the spacing size to align text
-        if isinstance(log_list, type(None)):
-            log_list = self.get_log_list(self.DB_TYPE_ALLTIME)
-
         longest_username = 0
         for log in log_list:
             longest_username = max(longest_username, len(log['user_name']))
@@ -669,9 +680,10 @@ class ThreadNecroBot(BotBase, ThreadNecroBotCore):
                 'post_id'     : entry['post_id'],
                 'added_score' : float(f'{float(points):.3f}'),
             })
+            self.obj.write_post()
 
             entry = self.obj.get_user(user_name)
-            self.obj.write_post()
+            assert entry is not None
 
             return Cmd.ok(
                 f'Updated user "{user_name}": {entry["points_alltime"]} pts all time, {entry["points_monthly"]} pts monthly'
@@ -684,7 +696,11 @@ class ThreadNecroBot(BotBase, ThreadNecroBotCore):
         args = {
         })
         def cmd_get_prev_post_info(self) -> dict:
-            return Cmd.ok(str(self.obj.get_prev_post_info(self.obj.get_db_table)))
+            entry = self.obj.get_prev_post_info()
+            if not isinstance(entry, table.Document):
+                return Cmd.err('Unable to find previous post info')
+
+            return Cmd.ok(str(entry))
 
 
         @Cmd.help(

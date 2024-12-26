@@ -191,13 +191,15 @@ class ApiServer():
     @staticmethod
     @__app.put('/request')
     async def _(data: fastapi.Request) -> dict:
+        assert ApiServer.__cmd is not None
+
         ApiServer.__logger.info(f'PUT /request {data}')
 
         try:
             data = await data.json()
-            return ApiServer.__cmd.process_data(data)
+            return ApiServer.__cmd.process_data(dict(data))
         except Exception as e:
-            warnings.warn(e, source=e)
+            warnings.warn(str(e), source=e)
             return Cmd.err('Something went wrong!')
 
 

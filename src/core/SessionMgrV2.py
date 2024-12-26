@@ -236,6 +236,8 @@ class SessionMgrV2(SessionMgrBase):
 
 
     def edit_post(self, post_id: int | str, new_content: str, append: bool = False):
+        assert self.__osu_apiv2 is not None
+
         post_id = int(post_id)
         self.login()
 

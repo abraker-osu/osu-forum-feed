@@ -16,7 +16,7 @@ class SessionMgrBase():
 
     def __init__(self):
         self.__session = requests.Session()
-        self.__last_status_code = None
+        self.__last_status_code = -1
 
 
     def login(self):
@@ -125,7 +125,7 @@ class SessionMgrBase():
         """
         subforum_url = f'https://osu.ppy.sh/community/forums/{subforum_id}'
         if not page:
-            page = self.fetch_web_data(subforum_url)
+            page = BeautifulSoup(self.fetch_web_data(subforum_url).text, 'lxml')
 
         # Error checking
         if page.text.find('You shouldn&#039;t be here.') != -1:

@@ -82,7 +82,7 @@ class BotCore():
                 raise BotException(msg)
 
         # Now that all bots are initialized, initialize the API server
-        ApiServer.init(self.__bots.values())
+        ApiServer.init(list(self.__bots.values()))
 
 
     def forum_driver(self, post: Post):
@@ -95,10 +95,13 @@ class BotCore():
             The post to process.
         """
         for bot in self.__bots.values():
+            self.__logger.debug(f'Processing Bot: {bot.name}')
             bot.event(post)
 
+        self.__logger.debug('Finished processing all bots')
 
-    def get_bot(self, name: str | type[None]) -> BotBase | list[BotBase]:
+
+    def get_bot(self, name: str | None) -> BotBase | list[BotBase]:
         """
         Retrieve a bot instance by name.
 
@@ -118,7 +121,8 @@ class BotCore():
             The bot instance.
         """
         if isinstance(name, type(None)):
-            return self.__bots.values()
+            return list(self.__bots.values())
+
         return self.__bots[name]
 
 

@@ -90,10 +90,10 @@ class Cmd():
         if not isinstance(var_types, list):
             var_types = [ var_types ]
 
-        opt_text  = '(optional)' if is_optional else ''
-        var_types = ','.join( var_type.__repr__() for var_type in var_types )
+        opt_txt = '(optional)' if is_optional else ''
+        var_txt = ','.join( str(var_type) for var_type in var_types )
 
-        return f'{var_types} {opt_text} |  {info}'
+        return f'{var_txt} {opt_txt} |  {info}'
 
 
     @staticmethod
@@ -242,9 +242,9 @@ class Cmd():
 
     class help():
 
-        def __init__(self, perm: int = 0, info: str = None, args: dict = None):
-            self.info = info
-            self.args = args
+        def __init__(self, perm: int = 0, info: str | None = None, args: dict | None = None):
+            self.info = info if info else ''
+            self.args = args if args else {}
             self.help = { 'info' : self.info, 'args' : self.args }
             self.perm = perm
 
@@ -253,7 +253,7 @@ class Cmd():
             return { 'perm' : self.perm, 'help' : self.gen_cmd_help, 'exec' : func }
 
 
-        def gen_cmd_help(self):
+        def gen_cmd_help(self) -> dict:
             args = zip(self.help['args'].keys(), self.help['args'].values())
             args = [ ' : '.join(arg) for arg in args ]
 
