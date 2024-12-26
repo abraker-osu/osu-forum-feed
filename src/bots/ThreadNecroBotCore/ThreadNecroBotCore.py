@@ -259,7 +259,7 @@ class ThreadNecroBotCore():
             }, doc_id=0))
 
 
-    def get_user(self, user_name: str) -> table.Document:
+    def get_user(self, user_name: str) -> table.Document | None:
         """
         fmt DB:
             "user_data" : {
@@ -282,21 +282,11 @@ class ThreadNecroBotCore():
 
         with tinydb.TinyDB(f'{self.__db_path}/{self.__DB_FILE_USERS}') as db:
             table_users = db.table(self.__TABLE_USERS_DATA)
-            entry = table_users.get(query['user_name'] == user_name)
-            if not entry:
+            entry_user_data = table_users.get(query['user_name'] == user_name)
+            if not isinstance(entry_user_data, table.Document):
                 return None
 
-            table_users = db.table(self.__TABLE_USERS_ALLTIME)
-            entry.update({
-                'points_alltime' : table_users.get(doc_id=entry.doc_id)['points'],
-            })
-
-            table_users = db.table(self.__TABLE_USERS_MONTHLY)
-            entry.update({
-                'points_monthly' : table_users.get(doc_id=entry.doc_id)['points'],
-            })
-
-        return entry
+        return entry_user_data
 
 
     def get_user_points(self, user_id: str | int, type_id: int) -> float:
