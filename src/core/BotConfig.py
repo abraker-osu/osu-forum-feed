@@ -1,5 +1,6 @@
-
+from typing import Any
 import yaml
+
 
 class BotConfig(dict):
     __instance = None
@@ -15,4 +16,4 @@ class BotConfig(dict):
             dict.__init__(self, yaml.safe_load(f))
 
 
-BotConfig = BotConfig().copy()
+BotConfig: dict[str, Any] = BotConfig().copy()

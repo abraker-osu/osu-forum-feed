@@ -86,12 +86,12 @@ class Cmd():
 
 
     @staticmethod
-    def arg(var_types: list[str] | str, is_optional: bool, info: str) -> str:
-        if type(var_types) is not list:
+    def arg(var_types: list[type] | type, is_optional: bool, info: str) -> str:
+        if not isinstance(var_types, list):
             var_types = [ var_types ]
 
         opt_text  = '(optional)' if is_optional else ''
-        var_types = ','.join([ str(var_type) for var_type in var_types ])
+        var_types = ','.join( var_type.__repr__() for var_type in var_types )
 
         return f'{var_types} {opt_text} |  {info}'
 
