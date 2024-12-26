@@ -147,7 +147,12 @@ class ThreadNecroBotCore():
 
             # Get number of monthly log entries
             entry = table_meta.get(doc_id=self.DB_TYPE_MONTHLY)
-            try:  num = entry['num']
+
+            try:
+                if not isinstance(entry, table.Document):
+                    raise TypeError
+
+                num = entry['num']
             except ( KeyError, TypeError ):
                 num = 0
 
@@ -325,18 +330,20 @@ class ThreadNecroBotCore():
         float
             The number of points the user has
         """
-        table = self.__TABLE_USERS_ALLTIME if type_id == self.DB_TYPE_ALLTIME else self.__TABLE_USERS_MONTHLY
+        table_db = self.__TABLE_USERS_ALLTIME if type_id == self.DB_TYPE_ALLTIME else self.__TABLE_USERS_MONTHLY
 
         with tinydb.TinyDB(f'{self.__db_path}/{self.__DB_FILE_USERS}') as db:
-            table_users = db.table(table)
+            table_users = db.table(table_db)
             entry = table_users.get(doc_id = int(user_id))
 
-            try: return entry['points']
-            except ( TypeError, KeyError ):
+            try:
+                assert isinstance(entry, table.Document)
+                return entry['points']
+            except ( TypeError, KeyError, AssertionError ):
                 return 0
 
 
-    def get_user_rank(self, user_id: str | int, type_id: int) -> int:
+    def get_user_rank(self, user_id: str | int, type_id: int) -> int | None:
         """
         Gets the rank of the user from the database
 
@@ -394,7 +401,7 @@ class ThreadNecroBotCore():
             return rank
 
 
-    def get_log_list(self, db_type: int, idx: int = 0, num: int = None) -> list[table.Document]:
+    def get_log_list(self, db_type: int, idx: int = 0, num: int | None = None) -> list[table.Document]:
         """
         Retrieves a list of log entries from the database
 
@@ -432,7 +439,11 @@ class ThreadNecroBotCore():
                 table_log_meta = db.table(self.__TABLE_LOGS_META)
                 entry = table_log_meta.get(doc_id=0)
 
-                try: num = entry['num']
+                try:
+                    if not isinstance(entry, table.Document):
+                        raise TypeError
+
+                    num = entry['num']
                 except ( KeyError, TypeError ):
                     pass
 
@@ -445,7 +456,7 @@ class ThreadNecroBotCore():
             return [
                 entry
                 for i in range(lst_len - idx, lst_len - idx - num, -1)
-                if not isinstance(entry := table_log.get(doc_id = i), type(None))
+                if isinstance(entry := table_log.get(doc_id = i), table.Document)
             ]
 
 
@@ -540,7 +551,10 @@ class ThreadNecroBotCore():
             table_users = db.table(self.__TABLE_USERS_DATA)
             for entry in ranked_entries:
                 # Insert user name into entries
-                entry['user_name'] = table_users.get(doc_id = entry.doc_id)['user_name']
+                data = table_users.get(doc_id = entry.doc_id)
+
+                assert isinstance(data, table.Document)
+                entry['user_name'] = data['user_name']
 
             return ranked_entries
 
@@ -582,7 +596,7 @@ class ThreadNecroBotCore():
             }, doc_id=0))
 
 
-    def get_prev_post_info(self) -> table.Document:
+    def get_prev_post_info(self) -> table.Document | list[table.Document] | None:
         """
         Retrieves info of previous ThreadNecro post from the database
 
