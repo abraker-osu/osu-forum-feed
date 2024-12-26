@@ -4,11 +4,14 @@ import time
 import logging
 import requests
 import warnings
+import threading
+import queue
 
 import tinydb
 from tinydb import table
 
-from threading import Thread
+from misc.thread_enchanced import ThreadEnchanced
+from misc.threaded_obj import Threaded
 
 from .BotConfig import BotConfig
 from .BotCore import BotCore
@@ -54,23 +57,25 @@ class ForumMonitor(BotCore):
         BotCore.__init__(self)
         SessionMgrV2.login()
 
-        self.__post_rate       = 5.0
-        self.__last_rate_limit = 0
+        self.__post_rate      = Threaded(5.0)
+        self.__latest_post_id = Threaded(self.__retrieve_latest_post())
+        self.__check_post_ids = Threaded([ self.__latest_post_id.get() ])
 
-        self.__latest_post_id = None
-        self.__latest_post_id = self.__retrieve_latest_post()
-        self.__check_post_ids = [ self.__latest_post_id ]
+        self.__thread_check_post_loop = ThreadEnchanced(
+            target=self.__check_posts_loop, args=( threading.Event(), threading.Event() ),
+            daemon=True
+        )
+        self.__thread_new_post_loop = ThreadEnchanced(
+            target=self.__handle_posts_loop, args=( threading.Event(), threading.Event() ),
+            daemon=True
+        )
+        self.__post_queue = queue.Queue()
 
         self.__logger.info(f'latest_post_id: {self.__latest_post_id}')
 
         # Is the following monitor enabled?
         self.__monitor_enables = {
             ForumMonitor.NEW_POST : True,
-        }
-
-        # Is the following monitor undergoing operation?
-        self.__monitor_statuses = {
-            ForumMonitor.NEW_POST : False,
         }
 
 
@@ -123,11 +128,12 @@ class ForumMonitor(BotCore):
         int
             The latest post id.
         """
-        if not self.__latest_post_id:
+        latest_post_id = self.__latest_post_id.get()
+        if not latest_post_id:
             self.__logger.debug('Latest post id is not set; retrieving from db...')
             return self.__retrieve_latest_post()
 
-        return self.__latest_post_id
+        return latest_post_id
 
 
     def __retrieve_latest_post(self) -> int:
@@ -178,45 +184,15 @@ class ForumMonitor(BotCore):
                 self.__DB_ID_FORUM_MONITOR
             ))
 
-            self.__latest_post_id = post_id
-            self.__check_post_ids = [ post_id ]
+        self.__latest_post_id.set(post_id)
+        self.__check_post_ids.set([ post_id ])
 
-            self.__logger.debug(f'SET latest_post_id: {post_id}')
-
-
-    def get_enable(self, event_type: int):
-        if not event_type in self.__monitor_enables:
-            raise BotException(f'Invalid event type {event_type}')
-
-        return self.__monitor_enables[event_type]
+        self.__logger.debug(f'SET latest_post_id: {post_id}')
 
 
-    def set_enable(self, event_type: int, enable: bool):
-        if not event_type in self.__monitor_enables:
-            raise BotException(f'Invalid event type {event_type}')
-
-        self.__logger.info(f'Setting event type {event_type} to {enable}')
-        self.__monitor_enables[event_type] = enable
-
-
-    def get_status(self, event_type: int):
-        if not event_type in self.__monitor_statuses:
-            raise BotException(f'Invalid event type {event_type}')
-
-        return self.__monitor_statuses[event_type]
-
-
-    def __set_status(self, event_type: int, status: bool):
-        if not event_type in self.__monitor_statuses:
-            raise BotException(f'Invalid event type {event_type}')
-
-        self.__monitor_statuses[event_type] = status
-
-
-    def fetch_post(self, check_post_id: int | str) -> "tuple[Optional[str], Optional[requests.Response]]":
-        # Request website data
-        post_url = f'https://osu.ppy.sh/community/forums/posts/{check_post_id}'
-        self.__logger.debug(f'Checking post id: {check_post_id}')
+    def fetch_post(self, post_id: int | str) -> tuple[Optional[str], Optional[requests.Response]]:
+        post_url = f'https://osu.ppy.sh/community/forums/posts/{post_id}'
+        self.__logger.debug(f'Fetching post id: {post_id}')
 
         # Try to get web data. If not possible due to server error, then abort and retry after some time
         try: page = SessionMgrV2.fetch_web_data(post_url)
@@ -228,149 +204,180 @@ class ForumMonitor(BotCore):
 
     def run(self):
         self.__logger.info('Starting forum monitor...')
-
-        new_post_task: Thread = None
-        last_post_check = time.time()
-
-        warned_post_check_timeout = False
-        timeout = 60*5   # 5 minutes
+        self.__thread_check_post_loop.start()
+        self.__thread_new_post_loop.start()
 
         # Due to the checking if the task is running, the bots will process one post at a time.
         # This is desired as a preventive measure against hitting osu!web rate limits.
         while True:
             with warnings.catch_warnings(record=True) as w:
                 try:
-                    time.sleep(1)  # sleep for 1 second
+                    time.sleep(1)
                     if self.runtime_quit:
-                        break
-
-                    if self.get_enable(ForumMonitor.NEW_POST) == True:
-                        if not warned_post_check_timeout:
-                            if time.time() - last_post_check > timeout:
-                                warnings.warn('Post checking has timed out! (this means one of the modules halted)')
-                                warned_post_check_timeout = True
-
-                    if not new_post_task or not new_post_task.is_alive():
-                        self.__set_status(ForumMonitor.NEW_POST, False)
-                        if self.get_enable(ForumMonitor.NEW_POST) == True:
-                            new_post_task = Thread(target=self.__check_new_post, args=[])
-                            new_post_task.start()
-
-                            last_post_check = time.time()
-                            self.__set_status(ForumMonitor.NEW_POST, True)
+                        self.__thread_check_post_loop.stop()
+                        self.__thread_new_post_loop.stop()
+                        return
 
                 except KeyboardInterrupt:
                     self.__logger.info(f'Exiting main loop.')
                     self.runtime_quit = True
                 except Exception as e:
-                    try: raise BotException from e
-                    except: pass
+                    self.__logger.error(f'Exception in forum monitor loop: {e}')
+                    try: raise BotException(f'Exception in forum monitor loop: {e}') from e
+                    except:
+                        pass
 
             # Report warnings to admin via Discord
             for warning in w:
                 if not warning.source:
                     # Warnings setting source as the exception
                     try: raise BotException(f'Warning: {warning.message}')
-                    except: continue
+                    except:
+                        continue
 
                 # Warnings where the exception is passed as the source
                 try: raise warning.source
                 except:
                     try: raise BotException(f'Warning: {warning.source}') from warning.source
-                    except: continue
+                    except:
+                        continue
 
             w.clear()
 
 
-        if new_post_task:
-            new_post_task.join()
+    def __check_posts(self, check_post_ids: list[int]) -> tuple[int, requests.Response | None]:
+        rate_post_max  = BotConfig['Core']['rate_post_max']
+        rate_post_min  = BotConfig['Core']['rate_post_min']
+        rate_gracetime = BotConfig['Core']['rate_gracetime']
 
+        last_rate_limit = 0
 
-    def __check_new_post(self):
-        check_post_ids = self.__check_post_ids[:]
-        for i in range(len(check_post_ids)):
-            if self.runtime_quit:
-                return
+        self.__logger.debug(f'Starting post check run for: {check_post_ids}')
 
-            try:
-                time.sleep(self.__post_rate)
+        i = 0
+        while i < len(check_post_ids):
+            time.sleep(self.__post_rate.get())
 
-                post_url, page = self.fetch_post(check_post_ids[i])
-                if isinstance(page, type(None)):
-                    continue
+            post_url, page = self.fetch_post(check_post_ids[i])
+            if isinstance(page, type(None)):
+                warnings.warn(f'Failed to fetch post {check_post_ids[i]}: Page is None')
+                continue
 
-                self.__logger.debug(f'Post ID: {check_post_ids[i]}    Status: {page.status_code}')
-
-                # Ok post
-                if page.status_code == 200:
-                    rate_limit_period = time.time() - self.__last_rate_limit
-                    if rate_limit_period > BotConfig['Core']['rate_gracetime'] * self.__post_rate:
-                        self.__post_rate -= 0.1
-
-                    self.handle_new_post(check_post_ids, i, page)
-                    return
-            except KeyboardInterrupt:
-                self.runtime_quit = True
-                break
-            except BotException as e:
-                self.__logger.error(f'{e}\nPost id {check_post_ids[i]}')
-                raise
+            self.__logger.debug(f'Checking post id: {check_post_ids[i]}    Status: {page.status_code}   Post rate: {self.__post_rate}')
 
             # Too many requests -> start over
             if page.status_code == 429:
-                self.__last_rate_limit = time.time()
-                if self.__post_rate < BotConfig['Core']['rate_post_max']:
-                    self.__post_rate += 0.1
-                    if self.__post_rate >= BotConfig['Core']['rate_post_warn']:
-                        DiscordClient.request('admin/post', {
-                            'src'      : 'forumbot',
-                            'contents' : '```Forum monitor post rate has reached over 5 sec!```'
-                        })
+                last_rate_limit = time.time()
+                self.__post_rate.set(min(rate_post_max, self.__post_rate + 0.1))
+                continue
+
+            # Ok post
+            if page.status_code == 200:
+                # If some time has passed since the last rate limit, reduce the post rate
+                rate_limit_period = time.time() - last_rate_limit
+                if rate_limit_period > rate_gracetime * self.__post_rate:
+                    # Lower rate since there is a successful request
+                    self.__post_rate.set(max(rate_post_min, self.__post_rate - 0.1))
+
+                self.__logger.debug(f'Found new post ID: {check_post_ids[i]}')
+                return check_post_ids[i], page
+
+            i += 1
+
+        # Post not found/available -> add next id and start over
+        self.__logger.debug(f'No new posts found: {check_post_ids}')
+        return -1, None
+
+
+    def __check_posts_loop(self, thread_event: threading.Event, target_event: threading.Event):
+        rate_post_warn = BotConfig['Core']['rate_post_warn']
+
+        warned = False
+
+        while True:
+            target_event.set()
+
+            if thread_event.is_set():
+                self.__logger.debug(f'Got stop signal for thread {threading.current_thread().name}')
+                target_event.set()
                 return
 
-            # Post not found/available -> add next id and start over
-            if (check_post_ids[-1] + 1) not in self.__check_post_ids:
-                self.__check_post_ids.append(check_post_ids[-1] + 1)
+            check_post_ids = self.__check_post_ids.get().copy()
 
+            try:
+                # Check for new posts
+                post_id0, page0 = self.__check_posts(check_post_ids)
+                if isinstance(page0, type(None)) and post_id0 == -1:
+                    if (check_post_ids[-1] + 1) not in self.__check_post_ids.get():
+                        self.__check_post_ids.append(check_post_ids[-1] + 1)
+                    continue
 
-    def handle_new_post(self, check_post_ids: "list[int]", i: int, page: requests.Response):
-        try:
-            # Recheck the posts in the list before this one
-            for j in range(i):
-                if self.runtime_quit:
-                    return
+                assert isinstance(page0, requests.Response) and post_id0 > 0
 
-                time.sleep(self.__post_rate)
+                # re-look over prev ids to make sure a previous one that was not available wasnt missed
+                post_id1, page1 = self.__check_posts(list(range(check_post_ids[0], post_id0)))
+                if isinstance(page1, requests.Response) and post_id1 > 0:
+                    page    = page1
+                    post_id = post_id1
+                else:
+                    page    = page0
+                    post_id = post_id0
 
-                # Silent re-look over
-                # tmp so not to overwite the post_url and page we have for the found post
-                try: post_url_tmp, page_tmp = self.fetch_post(check_post_ids[j])
+                # That is our latest post id and no need to check for any other but the next one
+                self.set_latest_post(post_id + 1)
+
+                # Send post to forum bots
+                self.__post_queue.put( ( post_id, page ) )
+
+                # Process warnings for post rate
+                if not warned and self.__post_rate >= rate_post_warn:
+                    DiscordClient.request('admin/post', {
+                        'src'      : 'forumbot',
+                        'contents' : '```Forum monitor post rate has reached over 5 sec!```'
+                    })
+                    warned = True
+
+                if warned and self.__post_rate < rate_post_warn:
+                    warned = False
+
+            except KeyboardInterrupt:
+                self.runtime_quit = True
+            except Exception as e:
+                self.__logger.error(f'Exception in post check loop: {e}')
+                try: raise BotException(f'Exception in post check loop: {e}') from e
                 except:
-                    continue
+                    pass
 
-                if isinstance(page_tmp, type(None)) or (page_tmp.status_code != 200):
-                    continue
 
-                # If we found an earlier post, make that the latest post
-                if page_tmp.status_code == 200:
-                    page = page_tmp
-                    i = j
-                    break
+    def __handle_posts_loop(self, thread_event: threading.Event, target_event: threading.Event):
+        target_event.set()
 
-            # Lower rate since there is a successful request
-            self.__post_rate = max(BotConfig['Core']['rate_post_min'], self.__post_rate - 0.1)
+        while True:
+            if thread_event.is_set():
+                while not self.__post_queue.empty():
+                    self.__post_queue.get()
 
-            # That is our latest post id and no need to check for any other but the next one
-            self.set_latest_post(check_post_ids[i] + 1)
-            post = SessionMgrV2.get_post(check_post_ids[i], page)
+                self.__logger.debug(f'Got stop signal for thread {threading.current_thread().name}')
+                target_event.set()
+                return
 
-            self.__logger.debug(f'Latest post ID: {check_post_ids[i]}\tDate: {post.date}')
+            try: data: tuple[int, requests.Response] = self.__post_queue.get(block=False, timeout=1)
+            except queue.Empty:
+                continue
 
-            # Send off the post data to the bots
-            self.forum_driver(post)
-        except Exception as e:
-            try: raise BotException(f'Warning: {e}') from e
-            except: pass
+            post_id, page = data
+
+            try:
+                post = SessionMgrV2.get_post(post_id, page)
+                self.__logger.debug(f'Processing post ID: {post_id}\tDate: {post.date}')
+
+                # Send off the post data to the bots
+                self.forum_driver(post)
+            except Exception as e:
+                self.__logger.error(f'Error handling new post: {e}')
+                try: raise BotException(f'Warning: {e}') from e
+                except:
+                    pass
 
 
 # NOTE: For this to work for the bots it must be imported

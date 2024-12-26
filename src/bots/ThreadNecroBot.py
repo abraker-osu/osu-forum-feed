@@ -41,6 +41,8 @@ class ThreadNecroBot(BotBase, ThreadNecroBotCore):
 
         self.banned    = set()    # \TODO: this needs to go into db
 
+        self.logger.debug(f'topic id {self.topic_id}; main post id {self.main_post_id}')
+
 
     def post_init(self):
         is_dbg  = BotConfig['Core']['is_dbg']
@@ -217,16 +219,15 @@ class ThreadNecroBot(BotBase, ThreadNecroBotCore):
             curr_post_time = datetime.datetime.fromtimestamp(curr_post_time)
         elif isinstance(curr_post_time, str):
             curr_post_time = datetime.datetime.fromisoformat(curr_post_time)
-        else:
-            raise TypeError
 
         prev_post_time = prev_post_info['prev_post_time']
         if isinstance(prev_post_time, int | float):
             prev_post_time = datetime.datetime.fromtimestamp(prev_post_time)
         elif isinstance(prev_post_time, str):
             prev_post_time = datetime.datetime.fromisoformat(prev_post_time)
-        else:
-            raise TypeError
+
+        assert isinstance(curr_post_time, datetime.datetime)
+        assert isinstance(prev_post_time, datetime.datetime)
 
         seconds_passed = (curr_post_time - prev_post_time).total_seconds()
         return self._b * math.pow(seconds_passed/60.0, self._n)
@@ -295,6 +296,8 @@ class ThreadNecroBot(BotBase, ThreadNecroBotCore):
         if added_score == 0:
             return
 
+        self.logger.debug('Processing prev user...')
+
         log_timestamp = None
         if self.is_multi_post(prev_post_info, data):
             log_timestamp = ThreadNecroBotCore.LOG_TIMESTAMP_MULTI
@@ -332,6 +335,8 @@ class ThreadNecroBot(BotBase, ThreadNecroBotCore):
                 'prev_user_name' : str
             }
         """
+        self.logger.debug('Processing curr user')
+
         # If prev_post_info is none (prev post doesn't exist yet)
         prev_post_info = self.get_prev_post_info()
         if not isinstance(prev_post_info, dict):

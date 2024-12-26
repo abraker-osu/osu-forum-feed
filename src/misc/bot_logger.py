@@ -7,6 +7,12 @@ if 'global_logger' not in globals():
 
     import sys
     import logging
+    import logging.config
+    import yaml
+
+    with open('loggers.yaml', 'r') as file:
+        config = yaml.safe_load(file)
+        logging.config.dictConfig(config)
 
     class ColorFormatter(logging.Formatter):
         """

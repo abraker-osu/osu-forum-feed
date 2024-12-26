@@ -1,8 +1,3 @@
-import requests
-import time
-import warnings
-
-from core.BotConfig import BotConfig
 from core.BotBase import BotBase
 from core.DiscordClient import DiscordClient
 from core.parser.Post import Post
@@ -14,8 +9,6 @@ class OTFeedBot(BotBase):
 
     def __init__(self):
         BotBase.__init__(self, self.BotCmd, self.__class__.__name__, enable = True)
-        self.__handle_rate = BotConfig['Core']['rate_post_min']
-        self.__pending_count = 0
 
 
     def post_init(self):
@@ -50,30 +43,7 @@ class OTFeedBot(BotBase):
             'avatar_url'     : post.creator.avatar,
             'contents'       : post.content_markdown
         }
-
-        self.__send_data(data)
-
-
-    def __send_data(self, data: "dict[str, str]"):
-        self.__pending_count += 1
-        if self.__pending_count > 10:
-            warnings.warn(f'Too many pending requests {self.__pending_count}!')
-
-        handle_rate = self.__handle_rate
-
-        while True:
-            try:
-                DiscordClient.request('/osu/post', data)
-                break
-            except (requests.exceptions.Timeout, requests.exceptions.ConnectionError):
-                self.logger.warning(f'No Discord feed server reply! Retrying in {handle_rate} second(s) (pending count: {self.__pending_count})...')
-                time.sleep(handle_rate)
-
-                # 1 hour max
-                handle_rate = min(3600, handle_rate + 10)
-                continue
-
-        self.__pending_count -= 1
+        DiscordClient.request('/osu/post', data)
 
 
     class BotCmd(Cmd):

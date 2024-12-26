@@ -247,6 +247,7 @@ class SessionMgrV2(SessionMgrBase):
 
         # [2024.09.15] TODO: If client grant expires, this will throw an error
         #   this should be handled via a login and a retry
+        self._logger.debug(f'Editing post id: {post_id}...')
         try: self.__osu_apiv2.forum_edit_post(post_id, new_content)
         except Exception as e:
             raise BotException(f'Unable to edit post id: {post_id}; {e}') from e

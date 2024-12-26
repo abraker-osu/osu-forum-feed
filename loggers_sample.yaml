@@ -1,0 +1,12 @@
+version: 1
+
+loggers:
+
+  ossapi.ossapiv2:
+    level: ERROR
+
+  api.CommandProcessor:
+    level:
+
+  core.DiscordClient:
+    level: WARNING
