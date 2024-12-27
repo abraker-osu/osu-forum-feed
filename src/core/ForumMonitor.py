@@ -353,7 +353,7 @@ class ForumMonitor(BotCore):
                 target_event.set()
                 return
 
-            try: data: tuple[int, requests.Response] = self.__post_queue.get(block=False, timeout=1)
+            try: data: tuple[int, requests.Response] = self.__post_queue.get(block=True, timeout=1)
             except queue.Empty:
                 continue
 

@@ -1,9 +1,13 @@
 import logging
+import queue
+import threading
+
+from .parser import Post
+from misc.thread_enchanced import ThreadEnchanced
 
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from api.Cmd import Cmd
-    from .parser import Post
 
 
 class BotBase:
@@ -14,9 +18,17 @@ class BotBase:
         self.__name    = name
         self.__bot_cmd = cmd(self)
 
+        self.__post_queue = queue.Queue()
+        self.__bot_thread = ThreadEnchanced(
+            target=self.__loop, args=( threading.Event(), threading.Event() ),
+            daemon=True
+        )
+        self.__bot_thread.start()
+
 
     def post_init(self):
         raise NotImplementedError()
+
 
     @property
     def cmd(self) -> "Cmd":
@@ -48,7 +60,7 @@ class BotBase:
         return self.__enable
 
 
-    def event(self, forum_data: "Post"):
+    def event(self, forum_data: Post):
         """
         To be called for each new post
 
@@ -60,13 +72,10 @@ class BotBase:
         if not self.__enable:
             return
 
-        if not self.filter_data(forum_data):
-            return
-
-        self.process_data(forum_data)
+        self.__post_queue.put(forum_data)
 
 
-    def filter_data(self, forum_data: "Post") -> bool:
+    def filter_data(self, forum_data: Post) -> bool:
         """
         Bot filter criteria. By default, it doesn't filter anything.
         Reimplement this method if it's desired to filter posts.
@@ -86,7 +95,7 @@ class BotBase:
         return True
 
 
-    def process_data(self, forum_data: "Post") -> None:
+    def process_data(self, forum_data: Post) -> None:
         """
         Processes the given forum data; used by the bot module to process
         data. This method should be overridden in a child class to do
@@ -105,3 +114,23 @@ class BotBase:
             If this method is not implemented in the child class.
         """
         raise NotImplementedError('process_data method not implemented')
+
+
+    def __loop(self, thread_event: threading.Event, target_event: threading.Event):
+        while True:
+            target_event.set()
+            if thread_event.is_set():
+                self.logger.debug(f'Got stop signal for thread {threading.current_thread().name}')
+                target_event.set()
+                return
+
+            try: post = self.__post_queue.get(block=True, timeout=1)
+            except queue.Empty:
+                continue
+
+            assert isinstance(post, Post)
+
+            if not self.filter_data(post):
+                return
+
+            self.process_data(post)

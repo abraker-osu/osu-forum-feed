@@ -1,4 +1,5 @@
 import threading
+import logging
 import time
 
 
@@ -25,6 +26,8 @@ class ThreadEnchanced(threading.Thread):
 
 
     def run(self):
+        logging.getLogger('Thread').debug(f'Starting thread {self.name}')
+
         self.__start_time = time.time()
         threading.Thread.run(self)
         self.__target_event.wait(self.__THREAD_TIMEOUT)
