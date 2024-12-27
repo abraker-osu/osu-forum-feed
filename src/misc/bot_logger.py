@@ -10,9 +10,12 @@ if 'global_logger' not in globals():
     import logging.config
     import yaml
 
-    with open('loggers.yaml', 'r') as file:
-        config = yaml.safe_load(file)
-        logging.config.dictConfig(config)
+    try:
+        with open('logger.yaml', 'r') as file:
+            config = yaml.safe_load(file)
+            logging.config.dictConfig(config)
+    except FileNotFoundError:
+        logging.getLogger('logger').warning('Failed to load logger.yaml, using default config')
 
     class ColorFormatter(logging.Formatter):
         """
