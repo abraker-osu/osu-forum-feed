@@ -210,7 +210,18 @@ class ForumMonitor(BotCore):
         # Due to the checking if the task is running, the bots will process one post at a time.
         # This is desired as a preventive measure against hitting osu!web rate limits.
         while not self.runtime_quit:
-            try: time.sleep(1)
+            try:
+                time.sleep(1)
+
+                # TODO: Get these loops running again instead of restarting the bot
+                if not self.__thread_check_post_loop.is_alive():
+                    warnings.warn(f'Post checking loop is dead!')
+                    self.runtime_quit = True
+
+                if not self.__thread_new_post_loop.is_alive():
+                    warnings.warn(f'Post processing loop is dead!')
+                    self.runtime_quit = True
+
             except KeyboardInterrupt:
                 self.__logger.info(f'Exiting main loop.')
                 self.runtime_quit = True
