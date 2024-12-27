@@ -72,6 +72,11 @@ class BotBase:
         if not self.__enable:
             return
 
+        if not self.filter_data(forum_data):
+            self.logger.debug(f'Filtered out post {forum_data.id} in {forum_data.topic.subforum_name}')
+            return
+
+        self.logger.debug(f'Queuing post {forum_data.id} in {forum_data.topic.subforum_name}')
         self.__post_queue.put(forum_data)
 
 
@@ -129,9 +134,6 @@ class BotBase:
                 continue
 
             assert isinstance(post, Post)
-
-            if not self.filter_data(post):
-                return
 
             self.logger.debug(f'Processing post {post.id}')
             self.process_data(post)

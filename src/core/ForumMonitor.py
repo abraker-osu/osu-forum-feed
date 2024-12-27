@@ -361,7 +361,7 @@ class ForumMonitor(BotCore):
 
             try:
                 post = SessionMgrV2.get_post(post_id, page)
-                self.__logger.debug(f'Processing post ID: {post_id} | date: {post.date}')
+                self.__logger.debug(f'Processing post ID: {post_id} | date: {post.date} | subforum: {post.topic.subforum_name}')
 
                 # Send off the post data to the bots
                 self.forum_driver(post)
