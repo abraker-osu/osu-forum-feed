@@ -95,10 +95,7 @@ class BotCore():
             The post to process.
         """
         for bot in self.__bots.values():
-            self.__logger.debug(f'Processing Bot: {bot.name}')
             bot.event(post)
-
-        self.__logger.debug('Finished processing all bots')
 
 
     def get_bot(self, name: str | None) -> BotBase | list[BotBase]:

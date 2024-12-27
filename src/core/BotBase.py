@@ -133,4 +133,5 @@ class BotBase:
             if not self.filter_data(post):
                 return
 
+            self.logger.debug(f'Processing post {post.id}')
             self.process_data(post)
