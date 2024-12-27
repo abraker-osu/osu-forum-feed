@@ -61,7 +61,7 @@ if 'global_logger' not in globals():
             __sh.setFormatter(logging.Formatter('%(levelname)s  %(asctime)s   [ %(name)s ] %(message)s'))
 
 
-        def __init__(self, name: str, level: int = logging.DEBUG):
+        def __init__(self, name: str, level: int = logging.INFO):
             logging.Logger.__init__(self, name, level=level)
             self.addHandler(self.__sh)
 

@@ -1,6 +1,7 @@
 import requests
 import logging
 import warnings
+import queue
 import threading
 import time
 
@@ -13,8 +14,8 @@ class DiscordClient():
 
     __instance = None
 
-    __MAX_THREAD_COUNT = 10
-    __THREAD_TIMEOUT   = 60
+    __MAX_REQUEST_COUNT = 10
+    __HANDLE_TIMEOUT    = 60  # 1 min
 
     def __new__(cls, *args, **kwargs):
         """
@@ -28,10 +29,14 @@ class DiscordClient():
         cls.__session          = requests.session()
         cls.__logger           = logging.getLogger(__name__)
         cls.__port: int        = BotConfig['Core']['discord_bot_port']
-        cls.__handle_rate: int = BotConfig['Core']['rate_post_min']
 
         cls.__lock = threading.Lock()
-        cls.__thread_pool: list[ThreadEnchanced] = []
+        cls.__queue = queue.Queue(maxsize=cls.__MAX_REQUEST_COUNT)
+        cls.__thread_loop = ThreadEnchanced(
+            target=cls.__loop, args=( threading.Event(), threading.Event() ),
+            daemon=True
+        )
+        cls.__thread_loop.start()
 
         return cls.__instance
 
@@ -49,54 +54,43 @@ class DiscordClient():
         self.__logger.debug(f'Performing request: {route} {data}')
 
         with self.__lock:
-            # Check for finished requests
-            for thread in self.__thread_pool.copy():
-                if not thread.is_alive():
-                    self.__logger.debug(f'Thread {thread.name} has finished; removing...')
-                    self.__thread_pool.remove(thread)
-                    continue
-
-                if thread.runtime > self.__THREAD_TIMEOUT:
-                    self.__logger.warning(f'DiscordClient: Thread {thread.name} timed out')
-                    thread.stop()
-                    self.__thread_pool.remove(thread)
-
-            # Check if there are too many pending requests
-            if len(self.__thread_pool) > self.__MAX_THREAD_COUNT:
-                warnings.warn(f'DiscordClient: Too many pending requests (num threads: {len(self.__thread_pool)})')
+            self.__logger.debug(f'Queuing data for route {route}')
+            try: self.__queue.put( ( route, data ) )
+            except queue.Full:
+                warnings.warn(f'DiscordClient: Queue is full', UserWarning, source='DiscordClient')
                 return
-
-            # Execute request
-            thread = ThreadEnchanced(
-                target=self.__send_data, args=(threading.Event(), threading.Event(), f'http://127.0.0.1:{self.__port}/{route}', data),
-                daemon=True
-            )
-            thread.start()
-            self.__thread_pool.append(thread)
-            self.__logger.debug(f'Created thread {thread.name} | Num threads: {len(self.__thread_pool)}')
 
 
     @staticmethod
-    def __send_data(target_event: threading.Event, thread_event: threading.Event, url: str, data: dict):
-        target_event.set()
-        handle_rate = DiscordClient.__handle_rate
+    def __loop(target_event: threading.Event, thread_event: threading.Event):
+        self = DiscordClient()
 
         while True:
+            target_event.set()
             if thread_event.is_set():
-                DiscordClient.__logger.debug(f'Got stop signal for thread {threading.current_thread().name}')
+                self.__logger.debug(f'Got stop signal for thread {threading.current_thread().name}')
                 target_event.set()
                 return
 
+            try: route, data = self.__queue.get(block=True, timeout=1)
+            except queue.Empty:
+                continue
+
+            self.__send_data(f'http://127.0.0.1:{self.__port}/{route}', data)
+
+
+    @staticmethod
+    def __send_data(url: str, data: dict):
+        time_start = time.time()
+
+        while time.time() - time_start < DiscordClient.__HANDLE_TIMEOUT:
             try:
                 response = DiscordClient.__session.post(url, json=data)
                 break
-            except (requests.exceptions.Timeout, requests.exceptions.ConnectionError):
-                warnings.warn(f'No Discord feed server reply! Retrying in {handle_rate} second(s)...')
-                time.sleep(handle_rate)
-
-                # 1 hour max
-                handle_rate = min(3600, handle_rate + 10)
+            except ( requests.exceptions.Timeout, requests.exceptions.ConnectionError ):
+                warnings.warn(f'DiscordClient: No Discord feed server reply! Retrying in 10 second(s)...', UserWarning, source='DiscordClient')
+                time.sleep(10)
                 continue
 
         if response.status_code != 200:
-            warnings.warn(f'DiscordClient: Unable to make request: {response.status_code}')
+            warnings.warn(f'DiscordClient: Unable to make request: {response.status_code}', UserWarning, source='DiscordClient')

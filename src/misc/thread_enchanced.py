@@ -26,7 +26,7 @@ class ThreadEnchanced(threading.Thread):
 
 
     def run(self):
-        logging.getLogger('Thread').debug(f'Starting thread {self.name}')
+        logging.getLogger('Thread').info(f'Starting thread {self.name}')
 
         self.__start_time = time.time()
         threading.Thread.run(self)
