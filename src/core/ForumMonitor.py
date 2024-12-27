@@ -209,40 +209,22 @@ class ForumMonitor(BotCore):
 
         # Due to the checking if the task is running, the bots will process one post at a time.
         # This is desired as a preventive measure against hitting osu!web rate limits.
-        while True:
-            with warnings.catch_warnings(record=True) as w:
-                try:
-                    time.sleep(1)
-                    if self.runtime_quit:
-                        self.__thread_check_post_loop.stop()
-                        self.__thread_new_post_loop.stop()
-                        return
-
-                except KeyboardInterrupt:
-                    self.__logger.info(f'Exiting main loop.')
-                    self.runtime_quit = True
-                except Exception as e:
-                    self.__logger.error(f'Exception in forum monitor loop: {e}')
-                    try: raise BotException(f'Exception in forum monitor loop: {e}') from e
-                    except:
-                        pass
-
-            # Report warnings to admin via Discord
-            for warning in w:
-                if not warning.source:
-                    # Warnings setting source as the exception
-                    try: raise BotException(f'Warning: {warning.message}')
-                    except:
-                        continue
-
-                # Warnings where the exception is passed as the source
-                try: raise warning.source
+        while not self.runtime_quit:
+            try: time.sleep(1)
+            except KeyboardInterrupt:
+                self.__logger.info(f'Exiting main loop.')
+                self.runtime_quit = True
+            except Exception as e:
+                self.__logger.error(f'Exception in forum monitor loop: {e}')
+                try: raise BotException(f'Exception in forum monitor loop: {e}') from e
                 except:
-                    try: raise BotException(f'Warning: {warning.source}') from warning.source
-                    except:
-                        continue
+                    pass
 
-            w.clear()
+        self.__thread_check_post_loop.stop()
+        self.__thread_check_post_loop.join()
+
+        self.__thread_new_post_loop.stop()
+        self.__thread_new_post_loop.join()
 
 
     def __check_posts(self, check_post_ids: list[int]) -> tuple[int, requests.Response | None]:
@@ -325,16 +307,15 @@ class ForumMonitor(BotCore):
 
                 # That is our latest post id and no need to check for any other but the next one
                 self.set_latest_post(post_id + 1)
+                assert len(self.__check_post_ids.get()) == 1
 
                 # Send post to forum bots
+                self.__logger.debug(f'Queuing post id: {post_id}')
                 self.__post_queue.put( ( post_id, page ) )
 
                 # Process warnings for post rate
                 if not warned and self.__post_rate >= rate_post_warn:
-                    DiscordClient.request('admin/post', {
-                        'src'      : 'forumbot',
-                        'contents' : '```Forum monitor post rate has reached over 5 sec!```'
-                    })
+                    warnings.warn('```Forum monitor post rate has reached over 5 sec!```', UserWarning, source='forumbot')
                     warned = True
 
                 if warned and self.__post_rate < rate_post_warn:
@@ -369,7 +350,7 @@ class ForumMonitor(BotCore):
 
             try:
                 post = SessionMgrV2.get_post(post_id, page)
-                self.__logger.debug(f'Processing post ID: {post_id}\tDate: {post.date}')
+                self.__logger.debug(f'Processing post ID: {post_id} | date: {post.date}')
 
                 # Send off the post data to the bots
                 self.forum_driver(post)

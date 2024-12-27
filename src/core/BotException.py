@@ -1,5 +1,7 @@
 import os, sys
 import inspect
+import warnings
+
 from .DiscordClient import DiscordClient
 
 
@@ -37,7 +39,4 @@ class BotException(Exception):
         msg = f'**{msg}**\n\n' + trace_text
         msg = msg.replace(f'{os.getcwd()}{os.sep}', '')
 
-        DiscordClient.request('admin/post', {
-            'src'      : 'forumbot',
-            'contents' : msg
-        })
+        warnings.warn(msg, RuntimeWarning)
