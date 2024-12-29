@@ -121,7 +121,7 @@ class BotBase:
         raise NotImplementedError('process_data method not implemented')
 
 
-    def __loop(self, thread_event: threading.Event, target_event: threading.Event):
+    def __loop(self, target_event: threading.Event, thread_event: threading.Event):
         while True:
             target_event.set()
             if thread_event.is_set():
