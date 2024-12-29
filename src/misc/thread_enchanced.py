@@ -36,7 +36,9 @@ class ThreadEnchanced(threading.Thread):
     def stop(self):
         self.__target_event.clear()
         self.__thread_event.set()
-        self.__target_event.wait(self.__THREAD_TIMEOUT)
+
+        if not self.__target_event.wait(self.__THREAD_TIMEOUT):
+            logging.getLogger('Thread').error(f'Failed to stop thread {self.name}')
 
 
     @property
