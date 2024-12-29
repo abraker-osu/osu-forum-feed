@@ -245,7 +245,7 @@ class ForumMonitor(BotCore):
         self.__thread_new_post_loop.join()
 
 
-    def __check_posts(self, check_post_ids: list[int]) -> tuple[int, requests.Response | None]:
+    def __check_posts(self, check_post_ids: list[int], timeout: float = 60) -> tuple[int, requests.Response | None]:
         rate_post_max  = BotConfig['Core']['rate_post_max']
         rate_post_min  = BotConfig['Core']['rate_post_min']
         rate_gracetime = BotConfig['Core']['rate_gracetime']
@@ -253,9 +253,12 @@ class ForumMonitor(BotCore):
         last_rate_limit = 0
 
         self.__logger.debug(f'Starting post check run for: {check_post_ids}')
+        time_start = time.time()
 
         i = 0
         while i < len(check_post_ids):
+            if time.time() - time_start > timeout:
+                raise TimeoutError(f'Post check run for {check_post_ids} timed out!')
 
             time.sleep(self.__check_rate.get())
 
