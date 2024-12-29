@@ -55,7 +55,7 @@ class ForumMonitor(BotCore):
 
         self.__check_rate     = Threaded(0.5*(BotConfig['Core']['rate_post_max'] + BotConfig['Core']['rate_post_min']))
         self.__latest_post_id = Threaded(self.__retrieve_latest_post())
-        self.__check_post_ids = Threaded([ self.__latest_post_id.get() ])
+        self.__check_post_ids = Threaded([ self.__latest_post_id.get() + 1 ])
 
         self.__thread_check_post_loop = ThreadEnchanced(
             target=self.__check_posts_loop, args=( threading.Event(), threading.Event() ),
@@ -190,7 +190,7 @@ class ForumMonitor(BotCore):
             ))
 
         self.__latest_post_id.set(post_id)
-        self.__check_post_ids.set([ post_id ])
+        self.__check_post_ids.set([ post_id + 1 ])
 
         self.__logger.debug(f'SET latest_post_id: {post_id}')
 
