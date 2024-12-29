@@ -399,11 +399,11 @@ class ForumMonitor(BotCore):
                 self.__check_post_ids.append(check_post_ids[-1] + 1)
             return -1, None
 
-        assert isinstance(page0, requests.Response) and post_id0 > 0
+        assert isinstance(page0, requests.Response) and post_id0 >= 0
 
         # re-look over prev ids to make sure a previous one that was not available wasnt missed
         post_id1, page1 = self.__check_posts(list(range(check_post_ids[0], post_id0)), timeout)
-        if isinstance(page1, requests.Response) and post_id1 > 0:
+        if isinstance(page1, requests.Response) and post_id1 >= 0:
             page    = page1
             post_id = post_id1
         else:
