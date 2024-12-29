@@ -55,7 +55,7 @@ class ForumMonitor(BotCore):
         BotCore.__init__(self)
         SessionMgrV2.login()
 
-        self.__post_rate      = Threaded(5.0)
+        self.__check_rate     = Threaded(0.5*(BotConfig['Core']['rate_post_max'] + BotConfig['Core']['rate_post_min']))
         self.__latest_post_id = Threaded(self.__retrieve_latest_post())
         self.__check_post_ids = Threaded([ self.__latest_post_id.get() ])
 
@@ -256,28 +256,29 @@ class ForumMonitor(BotCore):
 
         i = 0
         while i < len(check_post_ids):
-            time.sleep(self.__post_rate.get())
 
-            post_url, page = self.fetch_post(check_post_ids[i])
-            if isinstance(page, type(None)):
-                warnings.warn(f'Failed to fetch post {check_post_ids[i]}: Page is None')
+            time.sleep(self.__check_rate.get())
+
+            try: page = self.fetch_post(check_post_ids[i])
+            except BotException as e:
+                warnings.warn(f'Failed to fetch post {check_post_ids[i]}: {e}')
                 continue
 
-            self.__logger.debug(f'Checking post id: {check_post_ids[i]}    Status: {page.status_code}   Post rate: {self.__post_rate}')
+            self.__logger.debug(f'Checking post id: {check_post_ids[i]}    Status: {page.status_code}   Post rate: {self.__check_rate}')
 
             # Too many requests -> start over
             if page.status_code == 429:
                 last_rate_limit = time.time()
-                self.__post_rate.set(min(rate_post_max, self.__post_rate + 0.1))
+                self.__check_rate.set(min(rate_post_max, self.__check_rate + 0.1))
                 continue
 
             # Ok post
             if page.status_code == 200:
                 # If some time has passed since the last rate limit, reduce the post rate
                 rate_limit_period = time.time() - last_rate_limit
-                if rate_limit_period > rate_gracetime * self.__post_rate:
+                if rate_limit_period > rate_gracetime * self.__check_rate:
                     # Lower rate since there is a successful request
-                    self.__post_rate.set(max(rate_post_min, self.__post_rate - 0.1))
+                    self.__check_rate.set(max(rate_post_min, self.__check_rate - 0.1))
 
                 self.__logger.debug(f'Found new post ID: {check_post_ids[i]}')
                 return check_post_ids[i], page
@@ -332,11 +333,11 @@ class ForumMonitor(BotCore):
                 self.__post_queue.put( ( post_id, page ) )
 
                 # Process warnings for post rate
-                if not warned and self.__post_rate >= rate_post_warn:
+                if not warned and self.__check_rate >= rate_post_warn:
                     warnings.warn('```Forum monitor post rate has reached over 5 sec!```', UserWarning, source='forumbot')
                     warned = True
 
-                if warned and self.__post_rate < rate_post_warn:
+                if warned and self.__check_rate < rate_post_warn:
                     warned = False
 
             except KeyboardInterrupt:
