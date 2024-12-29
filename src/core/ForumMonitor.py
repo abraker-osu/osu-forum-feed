@@ -119,6 +119,11 @@ class ForumMonitor(BotCore):
         """
         Retrieves the latest post id from db or from memory if already set.
 
+        Raises
+        ------
+        BotException
+            If `latest_post_id` is not set and the DB entry does not exist
+
         Returns
         -------
         int
@@ -134,6 +139,8 @@ class ForumMonitor(BotCore):
 
     def __retrieve_latest_post(self) -> int:
         """
+        Retrieves the latest post id from db.
+
         fmt DB:
             {
                 "0": {
@@ -143,6 +150,16 @@ class ForumMonitor(BotCore):
                     "latest_thread_id" : int,
                 }
             }
+
+        Raises
+        ------
+        BotException
+            If the DB entry does not exist
+
+        Returns
+        -------
+        int
+            The latest post id.
         """
         with tinydb.TinyDB(f'{self._db_path}/{self.__DB_FILE_BOTCORE}') as db:
             table_botcore = db.table(self.__DB_TABLE_BOTCORE)
@@ -196,6 +213,24 @@ class ForumMonitor(BotCore):
 
 
     def fetch_post(self, post_id: int | str) -> requests.Response:
+        """
+        Fetches a post from osu!web.
+
+        Parameters
+        ----------
+        post_id : int | str
+            The id of the post to fetch.
+
+        Raises
+        ------
+        BotException
+            If the request times out or if there is a connection error
+
+        Returns
+        -------
+        tuple[str | None, requests.Response | None]
+            - If sucessful: A tuple containing the url of the post and the response object.
+        """
         post_url = f'https://osu.ppy.sh/community/forums/posts/{post_id}'
         self.__logger.debug(f'Fetching post id: {post_id}')
 
@@ -240,6 +275,45 @@ class ForumMonitor(BotCore):
 
 
     def __check_posts(self, check_post_ids: list[int], timeout: float = 60) -> tuple[int, requests.Response | None]:
+        """
+        Fetches web pages for given post ids to check for the first valid one.
+
+        Cases:
+        - Invalid post: Warn and retry getting the post again (do not go to
+            next post id). Will eventually raise `TimeoutError` if it spends
+            more than a minute doing this.
+
+        - Too many requests: Retry getting the post again (do not go to
+            next post id). Increase time between requests +10 ms. Will
+            eventually raise `TimeoutError` if it spends more than a minute
+            doing this.
+
+        - Found / OK: Decrease time between requests -10 ms if some time has
+            passed since the last too many requests encounter.  Return the
+            post id and page
+
+        - Not found: All posts in the list turned up 404 not found. Return
+            (-1, None)
+
+        Parameters
+        ----------
+        check_post_ids : list[int]
+            List of post ids to check
+
+        timeout : int
+            Timeout in seconds
+
+        Raises
+        ------
+        TimeoutError
+            If the check runs for too long
+
+        Returns
+        -------
+        tuple[int, requests.Response | None]
+            - If found: Returns the id of the first valid post id and the web page
+            - If not found: Returns (-1, None)
+        """
         last_rate_limit = 0
 
         rate_post_max  = BotConfig['Core']['rate_post_max']
@@ -288,6 +362,34 @@ class ForumMonitor(BotCore):
 
 
     def __check_posts_proc(self, timeout: float = 60) -> tuple[int, requests.Response | None]:
+        """
+        Searches for a valid post of the lowest id
+
+        Cases:
+        - Found: Rechecks lower ids again to make sure a previous one
+            that was not available wasnt missed. Returns the post id and
+            page. Resets list of post ids to check with the next post id.
+            Updates latest post id in DB.
+
+        - Not found: Appends next post id to list of post ids to check.
+            Returns (-1, None)
+
+        Parameters
+        ----------
+        timeout : int
+            Timeout in seconds
+
+        Raises
+        ------
+        TimeoutError
+            If the check runs for too long
+
+        Returns
+        -------
+        tuple[int, requests.Response | None]
+            - If found: Returns the id of the first valid post id and the web page
+            - If not found: Returns (-1, None)
+        """
         check_post_ids = self.__check_post_ids.get().copy()
 
         # Check for new posts
