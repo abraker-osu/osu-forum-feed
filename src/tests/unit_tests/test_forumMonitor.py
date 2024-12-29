@@ -1,19 +1,20 @@
-from typing import Optional
 import shutil
 
 import logging
 import time
 import requests
 import pytest
+import threading
 
-from threading import Thread, Lock
 from requests.models import Response
 
 from bs4 import BeautifulSoup
 
-
 from core.parser import Topic, Post
 from core.BotConfig import BotConfig
+
+from misc.threaded_obj import Threaded
+
 
 # Override botconfig settings
 BotConfig['Core'].update({
@@ -23,10 +24,9 @@ BotConfig['Core'].update({
     'api_port'        : 0,
 
     'latest_post_id'  : 0,
-    'rate_post_max'   : 0.1,
-    'rate_post_warn'  : 0.1,
+    'rate_post_max'   : 5.0,
+    'rate_post_warn'  : 2.0,
     'rate_post_min'   : 0.1,
-    'rate_fetch_fail' : 0.1,
 })
 
 # These must be imported after the BotConfig override
@@ -42,9 +42,10 @@ class TestForumMonitor:
     instead of actually fetching the data from the live site. This speeds up the testing, but also
     allows the possibility of the forum test page not being up to date with the actual site.
     """
+    __INITIAL_CHECK_RATE = 0.5*( BotConfig['Core']['rate_post_max'] + BotConfig['Core']['rate_post_min'] )
 
     __last_id_check = None
-    __id_check_lock = Lock()
+    __id_check_lock = threading.Lock()
 
     __logger = logging.getLogger(__qualname__)
 
@@ -54,6 +55,7 @@ class TestForumMonitor:
 
         cls.__old_get_post = SessionMgrV2.get_post
         SessionMgrV2.get_post = cls.__get_post
+        ForumMonitor._BotCore__init_bots = lambda: None
 
 
     @classmethod
@@ -73,12 +75,6 @@ class TestForumMonitor:
         #    with an instance of the class.
         self.__logger.info('Creating new forum monitor...')
         type(ForumMonitor)()
-        ForumMonitor.forum_driver = lambda _: ...
-
-        ForumMonitor._ForumMonitor__post_rate       = 0.1
-        ForumMonitor._ForumMonitor__rate_fetch_fail = 0.1
-        ForumMonitor._ForumMonitor__latest_post_id  = None
-        ForumMonitor._ForumMonitor__check_post_ids  = [ 0 ]
 
 
     def teardown_method(self, method):
@@ -103,16 +99,32 @@ class TestForumMonitor:
                 break
 
 
-    def check_post_ids(self):
-        return ForumMonitor._ForumMonitor__check_post_ids
+    @property
+    def check_post_ids(self) -> list[int]:
+        return ForumMonitor._ForumMonitor__check_post_ids.get()
 
 
-    def check_new_post(self):
-        ForumMonitor._ForumMonitor__check_new_post()
+    @property
+    def check_rate(self) -> float:
+        return ForumMonitor._ForumMonitor__check_rate.get()
+
+
+    @property
+    def latest_post(self) -> int:
+        return ForumMonitor.get_latest_post()
+
+
+    def check_posts(self, check_post_ids: list[int], timeout: float) -> tuple[int, requests.Response | None]:
+        return ForumMonitor._ForumMonitor__check_posts(check_post_ids, timeout)
+
+
+    def check_posts_proc(self, timeout: float) -> tuple[int, requests.Response | None]:
+        return ForumMonitor._ForumMonitor__check_posts_proc(timeout)
+
 
 
     @staticmethod
-    def __get_post(post_id: int | str, page: Optional[requests.Response] = None) -> Post:
+    def __get_post(post_id: int | str, page: requests.Response | None = None) -> Post:
         with open('src/tests/unit_tests/forum_test_page.htm', 'rb') as test_forum_page:
             content = test_forum_page.read()
 
@@ -123,47 +135,36 @@ class TestForumMonitor:
 
 
     @staticmethod
-    def fetch_none(thread_id):
-        with TestForumMonitor.__id_check_lock:
-            TestForumMonitor.__last_id_check = thread_id
-
-        thread_url = ''
-        page       = None
-
-        return thread_url, page
+    def fetch_none(post_id: int | str) -> requests.Response:
+        raise TimeoutError()
 
 
     @staticmethod
-    def fetch_not_found(thread_id):
+    def fetch_not_found(post_id: int | str) -> requests.Response:
         with TestForumMonitor.__id_check_lock:
-            TestForumMonitor.__last_id_check = thread_id
-
-        thread_url = ''
+            TestForumMonitor.__last_id_check = int(post_id)
 
         page = Response()
         page.status_code = 404
 
-        return thread_url, page
+        return page
 
 
     @staticmethod
-    def fetch_too_many_requests(thread_id):
+    def fetch_too_many_requests(post_id: int | str) -> requests.Response:
         with TestForumMonitor.__id_check_lock:
-            TestForumMonitor.__last_id_check = thread_id
-
-        thread_url = ''
+            TestForumMonitor.__last_id_check = int(post_id)
 
         page = Response()
         page.status_code = 429
 
-        return thread_url, page
+        return page
 
 
-    def fetch_ok(thread_id):
+    @staticmethod
+    def fetch_ok(post_id: int | str) -> requests.Response:
         with TestForumMonitor.__id_check_lock:
-            TestForumMonitor.__last_id_check = thread_id
-
-        thread_url = ''
+            TestForumMonitor.__last_id_check = int(post_id)
 
         page = Response()
         page.status_code = 200
@@ -171,7 +172,7 @@ class TestForumMonitor:
         with open('src/tests/unit_tests/forum_test_page.htm', 'rb') as test_forum_page:
             page._content = test_forum_page.read()
 
-        return thread_url, page
+        return page
 
 
     def test_initial_conditions(self):
@@ -184,26 +185,40 @@ class TestForumMonitor:
         assert ForumMonitor._db_path == BotConfig['Core']['db_path_dbg'], f'Unexpected db path | db_path = {ForumMonitor._db_path}'
 
         # If any of these fail, then every proceeding test is expected to fail as well
-        assert ForumMonitor.get_latest_post() == BotConfig['Core']['latest_post_id'], f'Unexpected latest post id | lastest_post_id = {ForumMonitor.get_latest_post()}'
+        assert self.latest_post == BotConfig['Core']['latest_post_id'], f'Unexpected latest post id | lastest_post_id = {self.latest_post}'
 
         # Forum monitor starts by loading the latest saved thread and post ids to check for, so there should be
         # one in there to start with.
-        assert len(self.check_post_ids()) == 1, f'Unexpected number of post ids to be checked | check_post_ids = {self.check_post_ids()}'
+        assert len(self.check_post_ids) == 1, f'Unexpected number of post ids to be checked | check_post_ids = {self.check_post_ids}'
+
+        # The first post id to check for should be the next id after the latest post
+        assert self.latest_post + 1 == self.check_post_ids[0], f'Unexpected latest post id | lastest_post_id = {self.latest_post}'
+
+        assert self.check_rate == self.__INITIAL_CHECK_RATE, f'Unexpected check rate | check_rate = {self.check_rate}'
 
 
     def test_post_non_page(self):
         """
         When failed to fetch the page,
         - Post id to check for remains the same as to retry getting it again. This happens if osu! site is down
+        - It should also timeout since it's trying to get the same post id indefinitely
         """
         # Make sure initial condition
-        assert len(self.check_post_ids()) == 1, f'Unexpected number of post ids to be checked | check_post_ids = {self.check_post_ids()}'
+        assert len(self.check_post_ids) == 1, f'Unexpected number of post ids to be checked | check_post_ids = {self.check_post_ids}'
 
         ForumMonitor.fetch_post = TestForumMonitor.fetch_none
-        self.check_new_post()
+
+        # It's not fetching valid posts, so it keeps on retrying the same post
+        # This should timeout
+        with pytest.raises(TimeoutError):
+            post_id, page = self.check_posts([ 1, 2, 3 ], 0.1)
+
+        # This should timeout as well
+        with pytest.raises(TimeoutError):
+            self.check_posts_proc(0.1)
 
         # Should remain unchanged since `check_new_post` simply quits when there is no fetched data
-        assert len(self.check_post_ids()) == 1, f'Unexpected number of post ids to be checked | check_post_ids = {self.check_post_ids()}'
+        assert len(self.check_post_ids) == 1, f'Unexpected number of post ids to be checked | check_post_ids = {self.check_post_ids}'
 
 
     def test_post_not_found(self):
@@ -212,30 +227,47 @@ class TestForumMonitor:
         - It means page does not yet exists. The next id to check for is added to the list, but old one is also kept so it can be check for again
         """
         # Make sure initial condition
-        assert len(self.check_post_ids()) == 1, f'Unexpected number of post ids to be checked | check_post_ids = {self.check_post_ids()}'
+        assert len(self.check_post_ids) == 1, f'Unexpected number of post ids to be checked | check_post_ids = {self.check_post_ids}'
 
+        # When all pages 404, it should return (-1, None)
         ForumMonitor.fetch_post = TestForumMonitor.fetch_not_found
-        self.check_new_post()
+        post_id, page = self.check_posts([ 1, 2, 3 ], 60)
 
-        # Should increase to 2 as it searches for a working post id
-        assert len(self.check_post_ids()) == 2, f'Unexpected number of post ids to be checked | check_post_ids = {self.check_post_ids()}'
+        assert post_id == -1, f'Unexpected post id returned | post_id = {post_id}'
+        assert page is None, f'Unexpected page returned | page = {page}'
+
+        post_id, page = self.check_posts_proc(60)
+
+        assert post_id == -1, f'Unexpected post id returned | post_id = {post_id}'
+        assert page is None, f'Unexpected page returned | page = {page}'
+
+        # Should also append the next post id to check for as it searches for a working post id
+        assert len(self.check_post_ids) == 2, f'Unexpected number of post ids to be checked | check_post_ids = {self.check_post_ids}'
 
 
     def test_post_too_many_requests(self):
         """
         On too many requests,
         - The forum monitor should progressively slow down and retry getting the post again
+        - It should also timeout since it's trying to get the same post id indefinitely
         """
         # Make sure initial condition
-        assert len(self.check_post_ids()) == 1, f'Unexpected number of post ids to be checked | check_post_ids = {self.check_post_ids()}'
+        assert len(self.check_post_ids) == 1, f'Unexpected number of post ids to be checked | check_post_ids = {self.check_post_ids}'
 
-        # TODO: Validate check rate goes down
-
+        assert self.check_rate == self.__INITIAL_CHECK_RATE, f'Unexpected check rate | check_rate = {self.check_rate}'
         ForumMonitor.fetch_post = TestForumMonitor.fetch_too_many_requests
-        self.check_new_post()
+
+        N = 5
+        with pytest.raises(TimeoutError):
+            post_id, page = self.check_posts([ 0, 1, 2 ], N*self.__INITIAL_CHECK_RATE)
+
+        # While not accurate arithmetic, waiting for `N*INITIAL_CHECK_RATE` ms should be close to the +0.1*N added check rate
+        # In practice it's a little off since the loop time is 10 ms longer every iteration. For the purposes of checking that
+        # it changes roughly as expected, this is good enough
+        assert self.check_rate == pytest.approx(self.__INITIAL_CHECK_RATE + 0.1*N), f'Unexpected check rate | check_rate = {self.check_rate}'
 
         # Should be 1 since too many requests is not indicative that current posts to check for are invalid
-        assert len(self.check_post_ids()) == 1, f'Unexpected number of post ids to be checked | check_post_ids = {self.check_post_ids()}'
+        assert len(self.check_post_ids) == 1, f'Unexpected number of post ids to be checked | check_post_ids = {self.check_post_ids}'
 
 
     def test_handle_new_post_single(self):
@@ -244,25 +276,21 @@ class TestForumMonitor:
         - The forum monitor discards all ids and inserts the next id into the list of post ids to check for
         """
         # Make sure initial condition
-        assert len(self.check_post_ids()) == 1, f'Unexpected number of post ids to be checked | check_post_ids = {self.check_post_ids()}'
-
-        post_id = 9190565
-        post_url, page = TestForumMonitor.fetch_ok(post_id)
-        ForumMonitor.handle_new_post([ post_id ], 0, page)
-
-        # Should be 1 since all prev ids are discard and new one is added
-        assert len(self.check_post_ids()) == 1, f'Unexpected number of post ids to be checked | check_post_ids = {self.check_post_ids()}'
-
-
-    def test_post_ok(self):
-        # Make sure initial condition
-        assert len(self.check_post_ids()) == 1, f'Unexpected number of post ids to be checked | check_post_ids = {self.check_post_ids()}'
+        assert len(self.check_post_ids) == 1, f'Unexpected number of post ids to be checked | check_post_ids = {self.check_post_ids}'
 
         ForumMonitor.fetch_post = TestForumMonitor.fetch_ok
-        self.check_new_post()
 
-        # Should be 1 since it resets the post ids to check to latest one
-        assert len(self.check_post_ids()) == 1, f'Unexpected number of post ids to be checked | check_post_ids = {self.check_post_ids()}'
+        # Should return the first successful post
+        post_id, page = self.check_posts([ 1, 2, 3 ], 0.1)
+        assert post_id == 1, f'Unexpected post id returned | post_id = {post_id}'
+
+        # Should return the first successful post
+        post_id, page = self.check_posts_proc(0.1)
+        assert post_id == 1, f'Unexpected post id returned | post_id = {post_id}'
+
+        # Should be 1 since all prev ids are discard and new one is added
+        assert len(self.check_post_ids) == 1, f'Unexpected number of post ids to be checked | check_post_ids = {self.check_post_ids}'
+        assert self.check_post_ids[0] == 2, f'Unexpected post ids to be checked | check_post_ids = {self.check_post_ids}'
 
 
     def test_post_multiple_ok(self):
@@ -270,16 +298,21 @@ class TestForumMonitor:
         Sets up 3 posts to be ok
         """
         # Make sure initial condition
-        assert len(self.check_post_ids()) == 1, f'Unexpected number of post ids to be checked | check_post_ids = {self.check_post_ids()}'
+        assert len(self.check_post_ids) == 1, f'Unexpected number of post ids to be checked | check_post_ids = {self.check_post_ids}'
 
         ForumMonitor.fetch_post = TestForumMonitor.fetch_ok
 
         for i in range(3):
             self.__logger.info(f'Checking new post ({i})...')
-            self.check_new_post()
+            latest_post = self.latest_post
+            post_id, page = self.check_posts_proc(0.1)
 
             # Should be 1 since all posts are ok
-            assert len(self.check_post_ids()) == 1, f'Unexpected number of post ids to be checked | check_post_ids = {self.check_post_ids()}'
+            assert len(self.check_post_ids) == 1, f'Unexpected number of post ids to be checked | check_post_ids = {self.check_post_ids}'
+
+            assert post_id == self.latest_post, f'Unexpected post id returned | post_id = {post_id}'
+            assert self.latest_post == latest_post + 1, f'Unexpected latest post | latest_post = {self.latest_post}'
+            assert self.check_post_ids[0] == self.latest_post + 1, f'Unexpected post ids to be checked | check_post_ids = {self.check_post_ids}'
 
 
     def test_post_404_ok_after_10(self):
@@ -287,21 +320,26 @@ class TestForumMonitor:
         Sets up 9 posts to be error 404 (not found) with the 10th one being ok
         """
         # Make sure initial condition
-        assert len(self.check_post_ids()) == 1, f'Unexpected number of post ids to be checked | check_post_ids = {self.check_post_ids()}'
+        assert len(self.check_post_ids) == 1, f'Unexpected number of post ids to be checked | check_post_ids = {self.check_post_ids}'
 
         ForumMonitor.fetch_post = TestForumMonitor.fetch_not_found
+        ForumMonitor._ForumMonitor__check_rate = Threaded(0.1)
 
         for i in range(9):
-            self.check_new_post()
+            self.__logger.info(f'Checking new post ({i})...')
+            post_id, page = self.check_posts_proc(60)
+
+            assert post_id == -1, f'Unexpected post id returned | post_id = {post_id}'
+            assert page is None, f'Unexpected page returned | page = {page}'
 
             # Should be going up as it searches for an ok post
-            assert len(self.check_post_ids()) == i + 2, f'Unexpected number of post ids to be checked | check_post_ids = {self.check_post_ids()}'
+            assert len(self.check_post_ids) == i + 2, f'Unexpected number of post ids to be checked | check_post_ids = {self.check_post_ids}'
 
         ForumMonitor.fetch_post = TestForumMonitor.fetch_ok
-        self.check_new_post()
+        post_id, page = self.check_posts_proc(0.1)
 
         # Should be 1 since it resets the post ids to check to latest one
-        assert len(self.check_post_ids()) == 1, f'Unexpected number of post ids to be checked | check_post_ids = {self.check_post_ids()}'
+        assert len(self.check_post_ids) == 1, f'Unexpected number of post ids to be checked | check_post_ids = {self.check_post_ids}'
 
 
     def test_post_429_ok_after_10(self):
@@ -309,68 +347,73 @@ class TestForumMonitor:
         Sets up 9 posts to be error 429 (too many request) with the 10th one being ok
         """
         # Make sure initial condition
-        assert len(self.check_post_ids()) == 1, f'Unexpected number of thread ids to be checked | check_post_ids = {self.check_post_ids()}'
+        assert len(self.check_post_ids) == 1, f'Unexpected number of thread ids to be checked | check_post_ids = {self.check_post_ids}'
 
         ForumMonitor.fetch_post = TestForumMonitor.fetch_too_many_requests
 
-        for _ in range(9):
-            self.check_new_post()
+        for i in range(9):
+            with pytest.raises(TimeoutError):
+                post_id, page = self.check_posts_proc(0.1)
 
             # Should not be going up in response to too many requests
-            assert len(self.check_post_ids()) == 1, f'Unexpected number of post ids to be checked | check_post_ids = {self.check_post_ids()}'
+            assert len(self.check_post_ids) == 1, f'Unexpected number of post ids to be checked | check_post_ids = {self.check_post_ids}'
+
+            # TODO: Test check rate
 
         ForumMonitor.fetch_post = TestForumMonitor.fetch_ok
-        self.check_new_post()
+        post_id, page = self.check_posts_proc(0.1)
 
         # Should be 1 since it resets the post ids to check to latest one
-        assert len(self.check_post_ids()) == 1, f'Unexpected number of post ids to be checked | check_post_ids = {self.check_post_ids()}'
+        assert len(self.check_post_ids) == 1, f'Unexpected number of post ids to be checked | check_post_ids = {self.check_post_ids}'
+
+        # TODO Test check rate
+        #  It should decrease after some time has passed after last too many requests
+        #  Otherwise it should be same
 
 
     def test_earlier_post_ok(self):
         """
         Sets up 20 posts. Iterates through first N posts to yield error 404 (not found) with the
         20th one being ok, but makes the N+1 one ok mid checking.
-
-        It does not matter what the initial `check_post_ids` list in `ForumMonitor` is since the `handle_new_post`
-        function gets passed a copy of it which is supplied here. However, the list does get modified by function,
-        and what it gets modified to does matter.
         """
-        # Make sure initial condition
-        assert len(self.check_post_ids()) == 1, f'Unexpected number of post ids to be checked | check_post_ids = {self.check_post_ids()}'
+        check_post_ids = [ 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20 ]
 
-        check_post_ids = [ 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19 ]
-        post_url, page = TestForumMonitor.fetch_ok(0)  # Get a page to pass to `handle_new_post`
+        # Make sure the check rate is consistent to 10 checks per second
+        ForumMonitor._ForumMonitor__check_rate = Threaded(0.1)
+        assert self.check_rate == 0.1, f'Unexpected post rate | check_rate = {self.check_rate}'
+
+        # The `check_posts` func will be fetching 404's until the Nth post
+        ForumMonitor.fetch_post = TestForumMonitor.fetch_not_found
 
         for post_id in check_post_ids[:-1]:
-            TestForumMonitor.__last_id_check = -1
+            ForumMonitor._ForumMonitor__check_post_ids = Threaded(check_post_ids)
+            assert len(self.check_post_ids) == 20, f'Unexpected number of post ids to be checked | check_post_ids = {self.check_post_ids}'
 
-            # Make sure the post rate is consistent to 10 checks per second (handle_new_post will change this).
-            ForumMonitor._ForumMonitor__post_rate = 0.1
-
-            self.__logger.info(f'Will set post id {post_id} to ok')
-
-            # The `handle_new_post` func will be fetching 404's until the Nth post
-            ForumMonitor.fetch_post = TestForumMonitor.fetch_not_found
+            self.__logger.info(f'Will set ok at post id {post_id}')
 
             # This needs to be multithreaded so the test is able to change post id status mid-way
-            multi_threaded = Thread(target=ForumMonitor.handle_new_post, args=(check_post_ids, 19, page))
+            # Timeout is set to 60 seconds to avoid a TimeoutError being raised
+            multi_threaded = threading.Thread(target=self.check_posts_proc, args=(60, ))
             multi_threaded.start()
 
             # Time the sleep to be about in sync with post checking and then change the post
-            # fetch to be ok on the Nth post id. It should stop checking there
-            while TestForumMonitor.__last_id_check + 1 < post_id:
-                time.sleep(0.01)
-
-            ForumMonitor.fetch_post = TestForumMonitor.fetch_ok
+            # fetch to be ok on the Nth post id. It should exit checking after it sees the OK post
+            time.sleep(self.check_rate * (post_id + 1))
 
             # Wait for the function to finish
-            multi_threaded.join()
+            ForumMonitor.fetch_post = TestForumMonitor.fetch_ok
+            multi_threaded.join(timeout = 5)
+
+            assert multi_threaded.is_alive() == False, f'Failed to stop thread | thread = {multi_threaded}'
+
+            # According to the sleep timing, it should have stopped at the target post id
+            assert self.latest_post == post_id, f'Unexpected latest post | latest_post = {self.latest_post}'
 
             # Make sure there is still one post id to check for
-            assert len(self.check_post_ids()) == 1, f'Unexpected number of post ids to be checked | check_post_ids = {self.check_post_ids()}'
+            assert len(self.check_post_ids) == 1, f'Unexpected number of post ids to be checked | check_post_ids = {self.check_post_ids}'
 
             # When it finds the post id ok, post id #x, it will put post id #x+1 into list of post ids to check for next
-            assert self.check_post_ids()[0] == post_id + 1, f'Failed to find earlier post ID ok | check_post_ids = {self.check_post_ids()}'
+            assert self.check_post_ids[0] == post_id + 1, f'Failed to find earlier post ID ok | check_post_ids = {self.check_post_ids}'
 
 
     def test_post_id_check_recover(self):
@@ -379,42 +422,40 @@ class TestForumMonitor:
         Goes through post checking process and finds ok posts until 3rd one, then ForumMonitor is restarted. The saved post_id
         is expected to be recovered from Db
         """
-        # Make sure initial condition
-        assert len(self.check_post_ids()) == 1, f'Unexpected number of post ids to be checked | check_post_ids = {self.check_post_ids()}'
-
         # All of the posts will be ok
         ForumMonitor.fetch_post = TestForumMonitor.fetch_ok
 
         # Precondition that latest ok post id is #0
-        self.check_post_ids()[0] = 0
+        ForumMonitor.set_latest_post(-1)
 
         for i in range(3):
             self.__logger.info(f'Checking new post ({i})...')
-            self.check_new_post()
+            self.check_posts_proc(0.1)
 
             # Should be 1 since all posts are ok
-            assert len(self.check_post_ids()) == 1, f'Unexpected number of post ids to be checked | check_post_ids = {self.check_post_ids()}'
+            assert len(self.check_post_ids) == 1, f'Unexpected number of post ids to be checked | check_post_ids = {self.check_post_ids}'
 
             # Make sure post ids to check for are incrementing
-            assert self.check_post_ids()[0] == i + 1, f'Unexpected post_id | check_post_ids = {self.check_post_ids()}'
+            assert self.check_post_ids[0] == i + 1, f'Unexpected post_id | check_post_ids = {self.check_post_ids}'
+
+            assert self.latest_post == i, f'Unexpected latest post | latest_post = {self.latest_post}'
 
         # Scramble the check post ids for good measure
-        self.check_post_ids()[0] = 353
+        self.check_post_ids[0] = 353
 
         self.__logger.info(f'Creating new forum monitor...')
         type(ForumMonitor)()
 
         # Restart forum monitor
         # Initial conditions and overides
-        ForumMonitor._ForumMonitor__post_rate       = 0.1
-        ForumMonitor._ForumMonitor__rate_fetch_fail = 0.1
-        ForumMonitor._ForumMonitor__latest_post_id  = None
+        ForumMonitor._ForumMonitor__check_rate      = Threaded(0.1)
+        ForumMonitor._ForumMonitor__latest_post_id  = Threaded(None)
+
+        # Should be 2 as post id #2 is latest one checked before forum monitor restarted
+        assert self.latest_post == 2
+
+        # Should be 1 id to check as initial condition
+        assert len(self.check_post_ids) == 1, f'Unexpected number of post ids to be checked | check_post_ids = {self.check_post_ids}'
 
         # Should be 3 as post id #2 is latest one checked before forum monitor restarted
-        assert ForumMonitor.get_latest_post() == 3
-
-        # Should be 1 as initial condition
-        assert len(self.check_post_ids()) == 1, f'Unexpected number of post ids to be checked | check_post_ids = {self.check_post_ids()}'
-
-        # Should be 3 as post id #2 is latest one checked before forum monitor restarted
-        assert self.check_post_ids()[0] == 3, f'Unexpected post id to check for | check_post_ids = {self.check_post_ids()}'
+        assert self.check_post_ids[0] == 3, f'Unexpected post id to check for | check_post_ids = {self.check_post_ids}'

@@ -48,6 +48,12 @@ class TestBotCore:
         """
         Reset the database after each test to start each test clean
         """
+        bots = self.core.get_bot(None)
+        assert isinstance(bots, list), 'BotCore.get_bot(None) should return a list of BotBase instances'
+
+        for bot in bots:
+            bot.stop()
+
         self.__del_db()
 
 
