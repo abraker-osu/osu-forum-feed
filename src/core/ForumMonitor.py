@@ -25,10 +25,8 @@ class ForumMonitor(BotCore):
 
     NEW_POST = 1
 
-    __DB_FILE_BOTCORE = 'BotCore.json'
-
-    __TABLE_BOTCORE = 'Botcore'
-
+    __DB_FILE_BOTCORE     = 'BotCore.json'
+    __DB_TABLE_BOTCORE    = 'Botcore'
     __DB_ID_FORUM_MONITOR = 0
 
     __instance = None
@@ -96,7 +94,7 @@ class ForumMonitor(BotCore):
         self.__logger.info(f'Checking db at {self._db_path}/{self.__DB_FILE_BOTCORE}...')
 
         with tinydb.TinyDB(f'{self._db_path}/{self.__DB_FILE_BOTCORE}') as db:
-            table_botcore = db.table(self.__TABLE_BOTCORE)
+            table_botcore = db.table(self.__DB_TABLE_BOTCORE)
 
             entry = table_botcore.get(doc_id=self.__DB_ID_FORUM_MONITOR)
             if not isinstance(entry, type(None)):
@@ -149,7 +147,7 @@ class ForumMonitor(BotCore):
             }
         """
         with tinydb.TinyDB(f'{self._db_path}/{self.__DB_FILE_BOTCORE}') as db:
-            table_botcore = db.table(self.__TABLE_BOTCORE)
+            table_botcore = db.table(self.__DB_TABLE_BOTCORE)
 
             entry = table_botcore.get(doc_id=self.__DB_ID_FORUM_MONITOR)
             if not isinstance(entry, table.Document):
@@ -176,7 +174,7 @@ class ForumMonitor(BotCore):
             The id of the post to set the latest post id to.
         """
         with tinydb.TinyDB(f'{self._db_path}/{self.__DB_FILE_BOTCORE}') as db:
-            table_botcore = db.table(self.__TABLE_BOTCORE)
+            table_botcore = db.table(self.__DB_TABLE_BOTCORE)
             table_botcore.upsert(table.Document(
                 {
                     'latest_post_id' : post_id
