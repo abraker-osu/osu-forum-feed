@@ -361,7 +361,7 @@ class ForumMonitor(BotCore):
         return -1, None
 
 
-    def __check_posts_proc(self, timeout: float = 60) -> tuple[int, requests.Response | None]:
+    def __check_posts_proc(self, recheck: bool = True, timeout: float = 60) -> tuple[int, requests.Response | None]:
         """
         Searches for a valid post of the lowest id
 
@@ -401,14 +401,15 @@ class ForumMonitor(BotCore):
 
         assert isinstance(page0, requests.Response) and post_id0 >= 0
 
-        # re-look over prev ids to make sure a previous one that was not available wasnt missed
-        post_id1, page1 = self.__check_posts(list(range(check_post_ids[0], post_id0)), timeout)
-        if isinstance(page1, requests.Response) and post_id1 >= 0:
-            page    = page1
-            post_id = post_id1
-        else:
-            page    = page0
-            post_id = post_id0
+        page    = page0
+        post_id = post_id0
+
+        if recheck:
+            # re-look over prev ids to make sure a previous one that was not available wasnt missed
+            post_id1, page1 = self.__check_posts(list(range(check_post_ids[0], post_id0)), timeout)
+            if isinstance(page1, requests.Response) and post_id1 >= 0:
+                page    = page1
+                post_id = post_id1
 
         # That is our latest post id and no need to check for any other but the next one
         self.set_latest_post(post_id)

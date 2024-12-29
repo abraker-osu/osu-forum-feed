@@ -119,7 +119,7 @@ class TestForumMonitor:
 
 
     def check_posts_proc(self, timeout: float) -> tuple[int, requests.Response | None]:
-        return ForumMonitor._ForumMonitor__check_posts_proc(timeout)
+        return ForumMonitor._ForumMonitor__check_posts_proc(recheck = False, timeout = timeout)
 
 
 
@@ -376,18 +376,17 @@ class TestForumMonitor:
         Sets up 20 posts. Iterates through first N posts to yield error 404 (not found) with the
         20th one being ok, but makes the N+1 one ok mid checking.
         """
-        check_post_ids = [ 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20 ]
-
-        # Make sure the check rate is consistent to 10 checks per second
-        ForumMonitor._ForumMonitor__check_rate = Threaded(0.1)
-        assert self.check_rate == 0.1, f'Unexpected post rate | check_rate = {self.check_rate}'
+        assert self.latest_post == 0, f'Unexpected latest post | latest_post = {self.latest_post}'
 
         # The `check_posts` func will be fetching 404's until the Nth post
         ForumMonitor.fetch_post = TestForumMonitor.fetch_not_found
 
-        for post_id in check_post_ids[:-1]:
-            ForumMonitor._ForumMonitor__check_post_ids = Threaded(check_post_ids)
-            assert len(self.check_post_ids) == 20, f'Unexpected number of post ids to be checked | check_post_ids = {self.check_post_ids}'
+        for post_id in range(20):
+            ForumMonitor._ForumMonitor__check_rate = Threaded(0.1)
+            assert self.check_rate == 0.1, f'Unexpected post rate | check_rate = {self.check_rate}'
+
+            ForumMonitor._ForumMonitor__check_post_ids = Threaded([ 0 ])
+            assert len(self.check_post_ids) == 1, f'Unexpected number of post ids to be checked | check_post_ids = {self.check_post_ids}'
 
             self.__logger.info(f'Will set ok at post id {post_id}')
 
