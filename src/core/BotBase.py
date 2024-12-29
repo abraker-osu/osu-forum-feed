@@ -19,11 +19,8 @@ class BotBase:
         self.__bot_cmd = cmd(self)
 
         self.__post_queue = queue.Queue()
-        self.__bot_thread = ThreadEnchanced(
-            target=self.__loop, args=( threading.Event(), threading.Event() ),
-            daemon=True
-        )
-        self.__bot_thread.start()
+        self.__bot_thread = None
+        self.start()
 
 
     def post_init(self):
@@ -53,6 +50,31 @@ class BotBase:
         Disable the bot. This will prevent the bot from receiving new post events.
         """
         self.__enable = False
+
+
+    def start(self) -> None:
+        """
+        Starts the bot.
+        """
+        if self.__bot_thread is not None and self.__bot_thread.is_alive():
+            return
+
+        self.__bot_thread = ThreadEnchanced(
+            target=self.__loop, args=( threading.Event(), threading.Event() ),
+            daemon=True
+        )
+        self.__bot_thread.start()
+
+
+    def stop(self) -> None:
+        """
+        Stops the bot.
+        """
+        if self.__bot_thread is None or not self.__bot_thread.is_alive():
+            return
+
+        self.logger.info(f'Stopping bot {self.__name}...')
+        self.__bot_thread.stop()
 
 
     @property
