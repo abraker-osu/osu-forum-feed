@@ -173,6 +173,15 @@ class ForumMonitor(BotCore):
         post_id : int
             The id of the post to set the latest post id to.
         """
+        old_latest_post = self.__retrieve_latest_post()
+        if old_latest_post == post_id:
+            self.__check_post_ids.set([ post_id ])
+            self.__logger.debug(f'latest_post_id unchanged: {post_id}')
+            return
+
+        if post_id < old_latest_post:
+            warnings.warn(f'Saving `latest_post_id` to a lower value; old: {old_latest_post}, new: {post_id}', UserWarning, source = 'ForumMonitor')
+
         with tinydb.TinyDB(f'{self._db_path}/{self.__DB_FILE_BOTCORE}') as db:
             table_botcore = db.table(self.__DB_TABLE_BOTCORE)
             table_botcore.upsert(table.Document(
