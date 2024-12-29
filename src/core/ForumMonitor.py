@@ -1,5 +1,3 @@
-from typing import Optional
-
 import time
 import logging
 import requests
@@ -197,16 +195,12 @@ class ForumMonitor(BotCore):
         self.__logger.debug(f'SET latest_post_id: {post_id}')
 
 
-    def fetch_post(self, post_id: int | str) -> tuple[Optional[str], Optional[requests.Response]]:
+    def fetch_post(self, post_id: int | str) -> requests.Response:
         post_url = f'https://osu.ppy.sh/community/forums/posts/{post_id}'
         self.__logger.debug(f'Fetching post id: {post_id}')
 
         # Try to get web data. If not possible due to server error, then abort and retry after some time
-        try: page = SessionMgrV2.fetch_web_data(post_url)
-        except BotException:
-            return None, None
-
-        return post_url, page
+        return SessionMgrV2.fetch_web_data(post_url)
 
 
     def run(self):
@@ -246,11 +240,11 @@ class ForumMonitor(BotCore):
 
 
     def __check_posts(self, check_post_ids: list[int], timeout: float = 60) -> tuple[int, requests.Response | None]:
+        last_rate_limit = 0
+
         rate_post_max  = BotConfig['Core']['rate_post_max']
         rate_post_min  = BotConfig['Core']['rate_post_min']
         rate_gracetime = BotConfig['Core']['rate_gracetime']
-
-        last_rate_limit = 0
 
         self.__logger.debug(f'Starting post check run for: {check_post_ids}')
         time_start = time.time()
@@ -293,6 +287,36 @@ class ForumMonitor(BotCore):
         return -1, None
 
 
+    def __check_posts_proc(self, timeout: float = 60) -> tuple[int, requests.Response | None]:
+        check_post_ids = self.__check_post_ids.get().copy()
+
+        # Check for new posts
+        post_id0, page0 = self.__check_posts(check_post_ids, timeout)
+        if isinstance(page0, type(None)) and post_id0 == -1:
+            if ( check_post_ids[-1] + 1 ) not in self.__check_post_ids.get():
+                self.__check_post_ids.append(check_post_ids[-1] + 1)
+            return -1, None
+
+        assert isinstance(page0, requests.Response) and post_id0 > 0
+
+        # re-look over prev ids to make sure a previous one that was not available wasnt missed
+        post_id1, page1 = self.__check_posts(list(range(check_post_ids[0], post_id0)), timeout)
+        if isinstance(page1, requests.Response) and post_id1 > 0:
+            page    = page1
+            post_id = post_id1
+        else:
+            page    = page0
+            post_id = post_id0
+
+        # That is our latest post id and no need to check for any other but the next one
+        self.set_latest_post(post_id)
+
+        assert self.__latest_post_id == post_id
+        assert len(self.__check_post_ids.get()) == 1, f'check_post_ids: {self.__check_post_ids.get()}'
+
+        return post_id, page
+
+
     def __check_posts_loop(self, thread_event: threading.Event, target_event: threading.Event):
         rate_post_warn = BotConfig['Core']['rate_post_warn']
 
@@ -306,30 +330,10 @@ class ForumMonitor(BotCore):
                 target_event.set()
                 return
 
-            check_post_ids = self.__check_post_ids.get().copy()
-
             try:
-                # Check for new posts
-                post_id0, page0 = self.__check_posts(check_post_ids)
-                if isinstance(page0, type(None)) and post_id0 == -1:
-                    if (check_post_ids[-1] + 1) not in self.__check_post_ids.get():
-                        self.__check_post_ids.append(check_post_ids[-1] + 1)
+                post_id, page = self.__check_posts_proc()
+                if isinstance(page, type(None)) and post_id == -1:
                     continue
-
-                assert isinstance(page0, requests.Response) and post_id0 > 0
-
-                # re-look over prev ids to make sure a previous one that was not available wasnt missed
-                post_id1, page1 = self.__check_posts(list(range(check_post_ids[0], post_id0)))
-                if isinstance(page1, requests.Response) and post_id1 > 0:
-                    page    = page1
-                    post_id = post_id1
-                else:
-                    page    = page0
-                    post_id = post_id0
-
-                # That is our latest post id and no need to check for any other but the next one
-                self.set_latest_post(post_id + 1)
-                assert len(self.__check_post_ids.get()) == 1
 
                 # Send post to forum bots
                 self.__logger.debug(f'Queuing post id: {post_id}')
@@ -388,3 +392,4 @@ class ForumMonitor(BotCore):
 #   if the imported from top of file, the import chain will
 #   run before this assignment is reached.
 ForumMonitor = ForumMonitor()
+
