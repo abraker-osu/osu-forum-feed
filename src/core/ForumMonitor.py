@@ -188,7 +188,7 @@ class ForumMonitor(BotCore):
         post_id : int
             The id of the post to set the latest post id to.
         """
-        old_latest_post = self.__retrieve_latest_post()
+        old_latest_post = self.get_latest_post()
         if old_latest_post == post_id:
             self.__check_post_ids.set([ post_id ])
             self.__logger.debug(f'latest_post_id unchanged: {post_id}')
