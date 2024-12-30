@@ -27,15 +27,15 @@ class ThreadNecroBotTest(ThreadNecroBot):
 
     # So that it doesn't actually post to forum
     def process_post(self):
-        top_10_all_time_text     = self.get_top_10_text(self.get_top_10_list(self.DB_TYPE_ALLTIME))
-        top_scores_all_time_text = self.get_top_scores_text(self.get_top_scores_list(self.DB_TYPE_ALLTIME))
-        log_all_time_text        = self.get_forum_log_text(self.get_log_list(self.DB_TYPE_ALLTIME))
+        top_10_all_time_text     = self.get_top_10_text(self.DB_TYPE_ALLTIME)
+        top_scores_all_time_text = self.get_top_scores_text(self.DB_TYPE_ALLTIME)
+        log_all_time_text        = self.get_forum_log_text(self.DB_TYPE_ALLTIME)
 
-        top_10_monthly_text     = self.get_top_10_text(self.get_top_10_list(self.DB_TYPE_MONTHLY))
-        top_scores_monthly_text = self.get_top_scores_text(self.get_top_scores_list(self.DB_TYPE_MONTHLY))
-        log_monthly_text        = self.get_forum_log_text(self.get_log_list(self.DB_TYPE_MONTHLY))
+        top_10_monthly_text     = self.get_top_10_text(self.DB_TYPE_MONTHLY)
+        top_scores_monthly_text = self.get_top_scores_text(self.DB_TYPE_MONTHLY)
+        log_monthly_text        = self.get_forum_log_text(self.DB_TYPE_MONTHLY)
 
-        monthly_winners_text    = self.get_monthly_winners_text(self.get_monthly_winners_list())
+        monthly_winners_text    = self.get_monthly_winners_text()
 
         # \TODO: Investigate the total score mismatching for same user
         # For the user [Taiga] the score went down by some amount from before to after when the score is only added
@@ -103,11 +103,8 @@ class TestNecroBot:
         self.__logger.info('Creating new ThreadNecroBotTest...')
 
         BotConfig['ThreadNecroBot'].update({
-            'post_id'      :  random.randint(1, 10000),
-            'topic_id'     :  random.randint(1, 10000),
-
-            'post_id_dbg'  :  random.randint(1, 10000),
-            'topic_id_dbg' :  random.randint(1, 10000),
+            'post_id'  :  BotConfig['ThreadNecroBot']['post_id_dbg'],
+            'topic_id' :  BotConfig['ThreadNecroBot']['topic_id_dbg'],
         })
 
         self.bot = ThreadNecroBotTest()
@@ -119,6 +116,7 @@ class TestNecroBot:
         """
         Reset the database after each test to start each test clean
         """
+        self.bot.stop()
         self.__del_db()
 
 
@@ -649,12 +647,12 @@ class TestNecroBot:
         assert added_score == 0, 'added_score is wrong'
 
 
-    def test_top_10_all_time(self):
+    def test_ranked_all_time(self):
         """
-        Tests top 10 list to return user points in the correct order and amount
+        Tests ranked list to return user points in the correct order and amount
         """
         # Add a bunch of random scores
-        for i in range(self.bot._ThreadNecroBotCore__MAX_ENTRIES_TOP_SCORE + 10):
+        for i in range(100):
             data = {
                 'added_score' : 100*random.random(),
                 'user_id'     : i,
@@ -663,13 +661,13 @@ class TestNecroBot:
             }
             self.bot.update_user_data(data)
 
-            top_10_list = self.bot.get_top_10_list(self.bot.DB_TYPE_ALLTIME)
+            ranked_list = self.bot.get_ranked_list(self.bot.DB_TYPE_ALLTIME)
 
-            assert len(top_10_list) == min(self.bot._ThreadNecroBotCore__MAX_ENTRIES_TOP_SCORE, i + 1), 'Top 10 list does not have the expected number of entries'
-            for i in range(len(top_10_list) - 1):
-                assert top_10_list[i]['points_alltime'] > top_10_list[i + 1]['points_alltime'], f'#{i} pts are less than #{i + 1}'
+            assert len(ranked_list) ==  i + 1, 'Ranked list does not have the expected number of entries'
+            for i in range(len(ranked_list) - 1):
+                assert ranked_list[i]['points'] > ranked_list[i + 1]['points'], f'#{i} pts are less than #{i + 1}'
 
-        assert len(top_10_list) == self.bot._ThreadNecroBotCore__MAX_ENTRIES_TOP_SCORE, 'Top 10 list does not have the expected number of entries'
+        assert len(ranked_list) == 100, 'Ranked list does not have the expected number of entries'
 
         # Add a bunch of low scores
         for i in range(100):
@@ -681,11 +679,11 @@ class TestNecroBot:
             }
             self.bot.update_user_data(data)
 
-            top_10_list = self.bot.get_top_10_list(self.bot.DB_TYPE_ALLTIME)
-            for i in range(len(top_10_list) - 1):
-                assert top_10_list[i]['points_alltime'] > top_10_list[i + 1]['points_alltime'], f'#{i} pts are less than #{i + 1}'
+            ranked_list = self.bot.get_ranked_list(self.bot.DB_TYPE_ALLTIME)
+            for i in range(len(ranked_list) - 1):
+                assert ranked_list[i]['points'] >= ranked_list[i + 1]['points'], f'#{i} pts are less than #{i + 1}'
 
-        assert len(top_10_list) == 10, 'Top 10 list does not have the expected number of entries'
+        assert len(ranked_list) == 100, 'Ranked list does not have the expected number of entries'
 
         # Add a bunch of high scores
         for i in range(100):
@@ -697,11 +695,9 @@ class TestNecroBot:
             }
             self.bot.update_user_data(data)
 
-            top_10_list = self.bot.get_top_10_list(self.bot.DB_TYPE_ALLTIME)
-            for i in range(len(top_10_list) - 1):
-                assert top_10_list[i]['points_alltime'] > top_10_list[i + 1]['points_alltime'], f'#{i} pts are less than #{i + 1}'
-
-        assert len(top_10_list) == self.bot._ThreadNecroBotCore__MAX_ENTRIES_TOP_SCORE, 'Top 10 list does not have the expected number of entries'
+            ranked_list = self.bot.get_ranked_list(self.bot.DB_TYPE_ALLTIME)
+            for i in range(len(ranked_list) - 1):
+                assert ranked_list[i]['points'] >= ranked_list[i + 1]['points'], f'#{i} pts are less than #{i + 1}'
 
 
     def test_top_scores_all_time(self):
@@ -713,7 +709,7 @@ class TestNecroBot:
             new_score_data = {
                 'time'        : str(datetime.datetime(2018, 7, 19, 22, i, 25)),
                 'user_id'     : str(i),
-                'user_name'   : str('test user ' + str(i)),
+                'user_name'   : f'test user {i}',
                 'post_id'     : str(10000 + i*10),
                 'added_score' : '%.3f'%(100*random.random()),
             }
@@ -723,7 +719,7 @@ class TestNecroBot:
             for i in range(1, len(top_scores_list)):
                 assert float(top_scores_list[i - 1]['added_score']) > float(top_scores_list[i]['added_score']), f'#{i - 1} place is less than #{i} place'
 
-        assert len(top_scores_list) <= self.bot._ThreadNecroBotCore__MAX_ENTRIES_TOP_SCORE, 'Top score list does not have the expected number of entries'
+        assert len(top_scores_list) == 11, 'Top score list does not have the expected number of entries'
 
         # Add a bunch of low scores
         for i in range(100):
@@ -740,14 +736,14 @@ class TestNecroBot:
             for i in range(len(top_scores_list) - 1):
                 assert float(top_scores_list[i]['added_score']) > float(top_scores_list[i + 1]['added_score']), f'#{i} pts are less than #{i + 1}'
 
-        assert len(top_scores_list) == self.bot._ThreadNecroBotCore__MAX_ENTRIES_TOP_SCORE, 'Top score list does not have the expected number of entries'
+        assert len(top_scores_list) == 100, 'Top score list does not have the expected number of entries'
 
         # Add a bunch of high scores
         for i in range(100):
             new_score_data = {
                 'time'        : str(datetime.datetime(2018, 7, 19, int(i/60)%24, i%60, 25)),
                 'user_id'     : str(i),
-                'user_name'   : str('test user ' + str(i)),
+                'user_name'   : f'test user {i}',
                 'post_id'     : str(10000 + i*10),
                 'added_score' : '%.3f'%(1000*random.random()),
                 }
@@ -757,7 +753,7 @@ class TestNecroBot:
             for i in range(len(top_scores_list) - 1):
                 assert float(top_scores_list[i]['added_score']) > float(top_scores_list[i + 1]['added_score']), f'#{i} pts are less than #{i + 1}'
 
-        assert len(top_scores_list) == self.bot._ThreadNecroBotCore__MAX_ENTRIES_TOP_SCORE, 'Top score list does not have the expected number of entries'
+        assert len(top_scores_list) == 100, 'Top score list does not have the expected number of entries'
 
 
     def test_log_all_time(self):
@@ -777,9 +773,12 @@ class TestNecroBot:
             }
             self.bot.update_log_data(log_data)
 
-        log_list = self.bot.get_log_list(self.bot.DB_TYPE_ALLTIME)
-        assert len(log_list) <= self.bot._ThreadNecroBotCore__MAX_ENTRIES_LOGS, 'Log list does not have the expected number of entries'
-        assert int(log_list[-1]['post_id']) < int(log_list[0]['post_id']), 'Log list should be sorted from newest to oldest'
+        for i in range(20):
+            log_list = self.bot.get_log_list(self.bot.DB_TYPE_ALLTIME, num = i)
+            assert len(log_list) == i, f'Unexpected number of log entries: {len(log_list)} != {i}'
+
+            for i in range(len(log_list) - 1):
+                assert int(log_list[i]['post_id']) > int(log_list[i + 1]['post_id']), 'Log list should be sorted from oldest to newest'
 
 
     def test_50__cmd_add_user_points__user_points(self):
@@ -822,9 +821,9 @@ class TestNecroBot:
         assert round(diff, 3) == -123.456, 'Score after does not match expected'
 
 
-    def test_cmd_add_user_points__top_10_sort(self):
+    def test_cmd_add_user_points__ranked_sort(self):
         """
-        Tests the top 10 list after doing the add_user_points command
+        Tests the ranked list after doing the add_user_points command
         """
         for i in range(100):
             data = {
@@ -838,15 +837,15 @@ class TestNecroBot:
         bot_cmd = ThreadNecroBotTest.BotCmd(self.bot)
         print(bot_cmd.cmd_add_user_points['exec'](bot_cmd, 'test user 50', '1.23456'))
 
-        # Make sure the top 10 list is returned sorted correctly after invoking the add_user_points command
-        top_10_list = self.bot.get_top_10_list(self.bot.DB_TYPE_ALLTIME)
-        for i in range(len(top_10_list) - 1):
-            assert top_10_list[i]['points_alltime'] > top_10_list[i + 1]['points_alltime'], f'#{i} pts are less than #{i + 1}'
+        # Make sure the ranked list is returned sorted correctly after invoking the add_user_points command
+        ranked_list = self.bot.get_ranked_list(self.bot.DB_TYPE_ALLTIME)
+        for i in range(len(ranked_list) - 1):
+            assert ranked_list[i]['points'] >= ranked_list[i + 1]['points'], f'#{i} pts are less than #{i + 1}'
 
-        assert len(top_10_list) <= 10, 'Top 10 list does not have the expected number of entries'
+        assert len(ranked_list) == 100, 'Ranked list does not have the expected number of entries'
 
-        top_10_list = self.bot.get_top_10_list(self.bot.DB_TYPE_MONTHLY)
-        for i in range(len(top_10_list) - 1):
-            assert top_10_list[i]['points_monthly'] > top_10_list[i + 1]['points_monthly'], f'#{i} pts are less than #{i + 1}'
+        ranked_list = self.bot.get_ranked_list(self.bot.DB_TYPE_MONTHLY)
+        for i in range(len(ranked_list) - 1):
+            assert ranked_list[i]['points'] >= ranked_list[i + 1]['points'], f'#{i} pts are less than #{i + 1}'
 
-        assert len(top_10_list) <= 10, 'Top 10 list does not have the expected number of entries'
+        assert len(ranked_list) == 100, 'Ranked list does not have the expected number of entries'

@@ -137,5 +137,6 @@ class BotCore():
         """
         raise NotImplementedError('This method must be implemented by subclasses.')
 
+
     def runtime(self) -> datetime.timedelta:
         return datetime.datetime.now() - self.__time_start

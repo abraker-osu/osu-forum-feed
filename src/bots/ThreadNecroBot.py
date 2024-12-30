@@ -1,7 +1,7 @@
 import math
 import random
 import datetime
-import warnings
+import logging
 
 from dateutil.parser import parse
 from dateutil.relativedelta import relativedelta
@@ -39,9 +39,7 @@ class ThreadNecroBot(BotBase, ThreadNecroBotCore):
         self.main_post_id    = BotConfig['ThreadNecroBot']['post_id_dbg']  if is_dbg else BotConfig['ThreadNecroBot']['post_id']
         self.main_post: Post = SessionMgrV2.get_post(self.main_post_id)
 
-        self.banned    = set()    # \TODO: this needs to go into db
-
-        self.logger.debug(f'topic id {self.topic_id}; main post id {self.main_post_id}')
+        self.banned = set()    # \TODO: this needs to go into db
 
 
     def post_init(self):
@@ -687,11 +685,11 @@ class ThreadNecroBot(BotBase, ThreadNecroBotCore):
             })
             self.obj.write_post()
 
-            entry = self.obj.get_user(user_name)
-            assert entry is not None
+            pts_alltime = self.obj.get_user_points(entry.doc_id, self.obj.DB_TYPE_ALLTIME)
+            pts_monthly = self.obj.get_user_points(entry.doc_id, self.obj.DB_TYPE_MONTHLY)
 
             return Cmd.ok(
-                f'Updated user "{user_name}": {entry["points_alltime"]} pts all time, {entry["points_monthly"]} pts monthly'
+                f'Updated user "{user_name}": {pts_alltime} pts all time, {pts_monthly} pts monthly'
             )
 
 
