@@ -402,8 +402,10 @@ class TestForumMonitor:
 
             assert multi_threaded.is_alive() == True, f'Failed to start thread | thread = {multi_threaded}'
 
-            # Time the sleep to be about in sync with post checking and then change the post
-            # fetch to be ok on the Nth post id. It should exit checking after it sees the OK post
+            # Times the sleep to be about in sync with post checking and then change the post
+            # fetch to be ok on the Nth post id. It has a possibility of causing the test to
+            # fail sometimes due to the timing varying +/-. It should exit checking after it
+            # sees the OK post
             time.sleep(1.1 * self.check_rate * (post_id - 1))
 
             # Wait for the function to finish
