@@ -191,7 +191,6 @@ class ForumMonitor(BotCore):
         old_latest_post = self.get_latest_post()
         if old_latest_post == post_id:
             self.__check_post_ids.set([ post_id ])
-            self.__logger.debug(f'latest_post_id unchanged: {post_id}')
             return
 
         if post_id < old_latest_post:
@@ -414,7 +413,7 @@ class ForumMonitor(BotCore):
         # That is our latest post id and no need to check for any other but the next one
         self.set_latest_post(post_id)
 
-        assert self.__latest_post_id == post_id
+        assert self.__latest_post_id == post_id, f'latest_post_id: {self.__latest_post_id} != post_id: {post_id}'
         assert len(self.__check_post_ids.get()) == 1, f'check_post_ids: {self.__check_post_ids.get()}'
 
         return post_id, page

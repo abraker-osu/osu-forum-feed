@@ -374,19 +374,24 @@ class TestForumMonitor:
     def test_earlier_post_ok(self):
         """
         Sets up 20 posts. Iterates through first N posts to yield error 404 (not found) with the
-        20th one being ok, but makes the N+1 one ok mid checking.
+        Nth one being ok
         """
-        assert self.latest_post == 0, f'Unexpected latest post | latest_post = {self.latest_post}'
+        # Do 10 posts because it desyncs with the oversimplified `check_rate` timing
+        # estimation in the time.sleep as more posts are added
+        for post_id in range(1, 10):
+            # The `check_posts` func will be fetching 404's until the Nth post
+            ForumMonitor.fetch_post = TestForumMonitor.fetch_not_found
 
-        # The `check_posts` func will be fetching 404's until the Nth post
-        ForumMonitor.fetch_post = TestForumMonitor.fetch_not_found
-
-        for post_id in range(20):
             ForumMonitor._ForumMonitor__check_rate = Threaded(0.1)
             assert self.check_rate == 0.1, f'Unexpected post rate | check_rate = {self.check_rate}'
 
-            ForumMonitor._ForumMonitor__check_post_ids = Threaded([ 0 ])
-            assert len(self.check_post_ids) == 1, f'Unexpected number of post ids to be checked | check_post_ids = {self.check_post_ids}'
+            ForumMonitor._ForumMonitor__latest_post_id = Threaded(0)
+            assert self.latest_post == 0, f'Unexpected latest post | latest_post = {self.latest_post}'
+
+            ForumMonitor._ForumMonitor__check_post_ids = Threaded([ 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 ])
+
+            # Should be going up as it searches for an ok post
+            assert len(self.check_post_ids) == 10, f'Unexpected number of post ids to be checked | check_post_ids = {self.check_post_ids}'
 
             self.__logger.info(f'Will set ok at post id {post_id}')
 
@@ -395,9 +400,11 @@ class TestForumMonitor:
             multi_threaded = threading.Thread(target=self.check_posts_proc, args=(60, ))
             multi_threaded.start()
 
+            assert multi_threaded.is_alive() == True, f'Failed to start thread | thread = {multi_threaded}'
+
             # Time the sleep to be about in sync with post checking and then change the post
             # fetch to be ok on the Nth post id. It should exit checking after it sees the OK post
-            time.sleep(self.check_rate * (post_id + 1))
+            time.sleep(1.1 * self.check_rate * (post_id - 1))
 
             # Wait for the function to finish
             ForumMonitor.fetch_post = TestForumMonitor.fetch_ok
@@ -408,7 +415,7 @@ class TestForumMonitor:
             # According to the sleep timing, it should have stopped at the target post id
             assert self.latest_post == post_id, f'Unexpected latest post | latest_post = {self.latest_post}'
 
-            # Make sure there is still one post id to check for
+            # Make sure there is one post id to check for since a valid one was found
             assert len(self.check_post_ids) == 1, f'Unexpected number of post ids to be checked | check_post_ids = {self.check_post_ids}'
 
             # When it finds the post id ok, post id #x, it will put post id #x+1 into list of post ids to check for next
