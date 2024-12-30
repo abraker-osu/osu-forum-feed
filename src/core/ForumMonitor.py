@@ -130,7 +130,7 @@ class ForumMonitor(BotCore):
             The latest post id.
         """
         latest_post_id = self.__latest_post_id.get()
-        if not latest_post_id:
+        if latest_post_id is None:
             self.__logger.debug('Latest post id is not set; retrieving from db...')
             return self.__retrieve_latest_post()
 
