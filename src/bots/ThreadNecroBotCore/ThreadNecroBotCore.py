@@ -505,7 +505,8 @@ class ThreadNecroBotCore():
 
     def get_ranked_list(self, type_id: int) -> list[table.Document]:
         """
-        Retrieves a list of users from the database ranked in order of points
+        Retrieves a list of users from the database ranked in order of points,
+        ordered highest to lowest
 
         fmt DB:
             "user_data" : {

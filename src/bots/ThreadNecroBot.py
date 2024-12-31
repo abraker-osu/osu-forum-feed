@@ -580,7 +580,7 @@ class ThreadNecroBot(BotBase, ThreadNecroBotCore):
             return Cmd.ok(
                 'ThreadNecroBot runs the Thread Necromancy game in forum game subforum in osu! forums\n'
                 '\n'
-                'The awards points based on how long it has been since the last post was made. The more time passed, the more points. If a post gets deleted, the user\'s points halved.'
+                'It awards points based on how long it has been since the last post was made. The more time passed, the more points. If a post gets deleted, the user\'s points halved.'
             )
 
 
