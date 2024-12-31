@@ -210,28 +210,30 @@ class ThreadNecroBotCore():
     def update_monthly_winners(self):
         """
         Operations:
-        1. Get top 10 scores and determine which entry is #1
+        1. Get top 10 scores and determine which entry is #1 (record entry as "no winner" if list is empty)
         2. Append entry to winners list
         3. Update table
 
-        'monthly_winners' : {
-            [idx:int] : { 'time' : str, 'user_id' : int, 'user_name' : str, 'points' : float },
-            [idx:int] : { 'time' : str, 'user_id' : int, 'user_name' : str, 'points' : float },
-            ...
-        }
+        fmt DB:
+            'monthly_winners' : {
+                [idx:int] : { 'time' : str, 'user_id' : int, 'user_name' : str, 'points' : float },
+                [idx:int] : { 'time' : str, 'user_id' : int, 'user_name' : str, 'points' : float },
+                ...
+            }
         """
+        # Default if monthly ranked list is empty
+        # fmt entry (`self.get_ranked_list`):
+        #     { 'user_name' : str, 'points' : float }
+        monthly_winner = table.Document({
+            'user_name' : 'No Winner',
+            'points'    : 0.0
+        }, doc_id=-1)
+
         # If the monthly winners list doesn't exist, that means we are doing this for the first time
         # Grab the All-time top 10 if that is so because monthly top 10 is incomplete
-        if not self.get_monthly_winners_list():
-            top_scores_list = self.get_ranked_list(self.DB_TYPE_ALLTIME)
-        else:
-            top_scores_list = self.get_ranked_list(self.DB_TYPE_MONTHLY)
-
-        # Process
-        if not top_scores_list:
-            return
-
-        monthly_winner = top_scores_list[0]
+        top_scores_list = self.get_ranked_list(self.DB_TYPE_MONTHLY)
+        if len(top_scores_list) != 0:
+            monthly_winner = top_scores_list[0]
 
         with tinydb.TinyDB(f'{self.__db_path}/{self.__DB_FILE_WINNERS}') as db:
             table_winners = db.table(self.__TABLE_WINNERS)
