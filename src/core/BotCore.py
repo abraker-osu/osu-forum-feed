@@ -2,6 +2,7 @@ import os
 import importlib
 import logging
 import datetime
+import warnings
 
 from .BotException import BotException
 from .BotConfig import BotConfig
@@ -35,8 +36,10 @@ class BotCore():
 
         try: self.__init_bots()
         except Exception as e:
-            self.__logger.critical(str(e))
-            raise e
+            raise BotException(
+                f'Failed to initialize bots\n'
+                f'{e.__class__.__name__}: {e}'
+            ) from e
 
 
     def __init_bots(self):
@@ -57,14 +60,14 @@ class BotCore():
 
             try: self.__bots[bot] = getattr(module, bot)()
             except BotCore.ConfigKeyError as e:
-                self.__logger.error(f'Cannot load "{bot}"; Missing config key: "{e}"')
+                BotException(f'Cannot load "{bot}"; Missing config key: "{e}"')
                 continue
             except Exception as e:
-                msg = (
+                BotException((
                     f'Cannot load module for bot: {module}\n'
-                    f'{e}'
-                )
-                raise BotException(msg)
+                    f'{e.__class__.__name__}: {e}'
+                ))
+                continue
 
         self.__logger.info('Running bot post initialization routines.')
 
@@ -72,14 +75,14 @@ class BotCore():
         for name, bot in self.__bots.items():
             try: bot.post_init()
             except BotCore.ConfigKeyError as e:
-                self.__logger.error(f'Cannot run post initialization for "{name}"; Missing config key: "{e}"')
+                BotException(f'Cannot run post initialization for "{name}"; Missing config key: "{e}"')
                 continue
             except Exception as e:
-                msg = (
+                BotException(msg = (
                     f'Cannot run post initialization for "{name}"; Function bot.post_init() failed!\n'
-                    f'{e}'
-                )
-                raise BotException(msg)
+                    f'{e.__class__.__name__}: {e}'
+                ))
+                continue
 
         # Now that all bots are initialized, initialize the API server
         ApiServer.init(list(self.__bots.values()))
