@@ -257,7 +257,7 @@ class TestNecroBot:
         assert user_rank == 2, 'user_rank is wrong'
 
 
-    def test_update_user_data_all_time_monthly(self):
+    def test_pts_update(self):
         """
         Tests the data in all_time and monthly being written to the correct selection
         """
@@ -319,6 +319,168 @@ class TestNecroBot:
         # Check user - user id 2 monthly should be filled in
         user_points = self.bot.get_user_points(data_2['user_id'], self.bot.DB_TYPE_MONTHLY)
         assert user_points == 9999, 'user_points is wrong'
+
+
+    def test_pts_reset_month(self):
+        """
+        Tests the data in all_time and monthly after a month has passed. The monthly data should be cleared
+        and the all_time data should be remain as is
+        """
+        # Expected Ranking:
+        #   uid    all time   monthly
+        #   1      1111       1111
+        #   2      9999       9999
+        data_1 = {
+            'added_score' : 1111,
+            'user_id'     : 1,
+            'post_id'     : 123456,
+            'user_name'   : 'test user 1'
+        }
+        data_2 = {
+            'added_score' : 9999,
+            'user_id'     : 2,
+            'post_id'     : 123456,
+            'user_name'   : 'test user 2'
+        }
+
+        self.bot.update_user_data(data_1)
+        self.bot.update_user_data(data_2)
+
+        # Check user 1 - should have 1111 pts monthly and all time
+        user_points = self.bot.get_user_points(data_1['user_id'], self.bot.DB_TYPE_MONTHLY)
+        assert user_points == 1111, 'user_points is wrong'
+
+        user_points = self.bot.get_user_points(data_1['user_id'], self.bot.DB_TYPE_ALLTIME)
+        assert user_points == 1111, 'user_points is wrong'
+
+        # Check user 2 - should have 9999 pts monthly and all time
+        user_points = self.bot.get_user_points(data_2['user_id'], self.bot.DB_TYPE_MONTHLY)
+        assert user_points == 9999, 'user_points is wrong'
+
+        user_points = self.bot.get_user_points(data_2['user_id'], self.bot.DB_TYPE_ALLTIME)
+        assert user_points == 9999, 'user_points is wrong'
+
+        self.bot.reset_monthly_data()
+
+        # Check user 1 - should have 0 pts monthly and 1111 all time
+        user_points = self.bot.get_user_points(data_1['user_id'], self.bot.DB_TYPE_MONTHLY)
+        assert user_points == 0, 'user_points is wrong'
+
+        user_points = self.bot.get_user_points(data_1['user_id'], self.bot.DB_TYPE_ALLTIME)
+        assert user_points == 1111, 'user_points is wrong'
+
+        # Check user 2 - should have 0 pts monthly and 9999 all time
+        user_points = self.bot.get_user_points(data_2['user_id'], self.bot.DB_TYPE_MONTHLY)
+        assert user_points == 0, 'user_points is wrong'
+
+        user_points = self.bot.get_user_points(data_2['user_id'], self.bot.DB_TYPE_ALLTIME)
+        assert user_points == 9999, 'user_points is wrong'
+
+        # Expected Ranking:
+        #   uid    all time   monthly
+        #   1          2222     1111
+        #   2         19998     9999
+        self.bot.update_user_data(data_1)
+        self.bot.update_user_data(data_2)
+
+        # Check user 1 - should have 1111 pts monthly and 2222 all time
+        user_points = self.bot.get_user_points(data_1['user_id'], self.bot.DB_TYPE_MONTHLY)
+        assert user_points == 1111, 'user_points is wrong'
+
+        user_points = self.bot.get_user_points(data_1['user_id'], self.bot.DB_TYPE_ALLTIME)
+        assert user_points == 2222, 'user_points is wrong'
+
+        # Check user 2 - should have 9999 pts monthly and 19998 all time
+        user_points = self.bot.get_user_points(data_2['user_id'], self.bot.DB_TYPE_MONTHLY)
+        assert user_points == 9999, 'user_points is wrong'
+
+        user_points = self.bot.get_user_points(data_2['user_id'], self.bot.DB_TYPE_ALLTIME)
+        assert user_points == 19998, 'user_points is wrong'
+
+
+    def test_pts_monthly_winners(self):
+        """
+        Tests monthly winners db processing
+        """
+        # Expected Ranking:
+        #   uid    all time   monthly
+        #   1          2222     1111
+        #   2         19998     9999
+        data_1 = {
+            'added_score' : 1111,
+            'user_id'     : 1,
+            'post_id'     : 123456,
+            'user_name'   : 'test user 1'
+        }
+        data_2 = {
+            'added_score' : 9999,
+            'user_id'     : 2,
+            'post_id'     : 123456,
+            'user_name'   : 'test user 2'
+        }
+
+        # There should be no recorded monthly winners at this point
+        monthly_winners = self.bot.get_monthly_winners_list()
+        assert len(monthly_winners) == 0
+
+        self.bot.update_monthly_winners()
+
+        # The monthly ranked list is empty, so a "no winner" entry should have been recorded
+        monthly_winners = self.bot.get_monthly_winners_list()
+        assert len(monthly_winners) == 1
+
+        assert monthly_winners[0]['user_id']   == -1
+        assert monthly_winners[0]['user_name'] == 'No Winner'
+        assert monthly_winners[0]['points']    == 0
+
+        # Construct the ranked list
+        self.bot.update_user_data(data_1)
+        self.bot.update_user_data(data_2)
+
+        self.bot.reset_monthly_data()
+
+        self.bot.update_user_data(data_1)
+        self.bot.update_user_data(data_2)
+
+        # Make sure the pts are what they should be
+        user_points = self.bot.get_user_points(data_1['user_id'], self.bot.DB_TYPE_MONTHLY)
+        assert user_points == 1111, 'user_points is wrong'
+
+        user_points = self.bot.get_user_points(data_1['user_id'], self.bot.DB_TYPE_ALLTIME)
+        assert user_points == 2222, 'user_points is wrong'
+
+        user_points = self.bot.get_user_points(data_2['user_id'], self.bot.DB_TYPE_MONTHLY)
+        assert user_points == 9999, 'user_points is wrong'
+
+        user_points = self.bot.get_user_points(data_2['user_id'], self.bot.DB_TYPE_ALLTIME)
+        assert user_points == 19998, 'user_points is wrong'
+
+        self.bot.update_monthly_winners()
+
+        # Check to make sure #1 from leaderboard is recorded
+        monthly_winners = self.bot.get_monthly_winners_list()
+        assert len(monthly_winners) == 2, 'monthly_winners is wrong'
+
+        user_points = self.bot.get_user_points(data_2['user_id'], self.bot.DB_TYPE_MONTHLY)
+
+        # First entry should remain
+        assert monthly_winners[0]['user_id']   == -1
+        assert monthly_winners[0]['user_name'] == 'No Winner'
+        assert monthly_winners[0]['points']    == 0
+
+        # 2nd entry should be user 2 (who had most pts this month)
+        assert monthly_winners[1]['user_id']   == data_2['user_id']
+        assert monthly_winners[1]['user_name'] == data_2['user_name']
+        assert monthly_winners[1]['points']    == user_points
+
+        # Make sure the list appends
+        self.bot.update_monthly_winners()
+
+        monthly_winners = self.bot.get_monthly_winners_list()
+        assert len(monthly_winners) == 3
+        assert monthly_winners[2]['user_id']   == data_2['user_id']
+        assert monthly_winners[2]['user_name'] == data_2['user_name']
+        assert monthly_winners[2]['points']    == user_points
 
 
     def test_multi_post_detection(self):
