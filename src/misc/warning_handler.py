@@ -8,7 +8,12 @@ from core.DiscordClient import DiscordClient
 
 def warning_formatter(msg: warnings.WarningMessage):
     category = msg.category.__name__
-    s = f'{msg.filename}:{msg.lineno}: {category}: {msg.message}\n'
+
+    if isinstance(msg.message, str):
+        msg.message = msg.message.replace('\\\\', '\\')
+        msg.message = msg.message.replace(f'{os.getcwd()}{os.sep}', '')
+
+    s = f'{msg.filename}:{msg.lineno} - {category}: {msg.message}\n'
 
     if msg.line is None:
         try:
@@ -17,7 +22,7 @@ def warning_formatter(msg: warnings.WarningMessage):
         except Exception:
             # When a warning is logged during Python shutdown, linecache
             # and the import machinery don't work anymore
-            line = None
+            line      = None
             linecache = None
     else:
         line = msg.line
@@ -60,10 +65,12 @@ def warning_formatter(msg: warnings.WarningMessage):
         elif not tracing:
             s += f'{category}: Enable tracemalloc to get the object allocation traceback\n'
 
+    if not '```' in s:
+        return f'```{s}```'
     return s
 
 
-def warning_handler(message: Warning | str, category: type[Warning], filename: str, lineno: int, file: None = None, line: None | str = None):
+def warning_handler(message: Warning | str, category: type[Warning], filename: str, lineno: int, file: str | None = None, line: None | str = None):
     if isinstance(message, Warning):
         message = str(message)
 
